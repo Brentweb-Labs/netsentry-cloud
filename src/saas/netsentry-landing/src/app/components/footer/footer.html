@@ -1,0 +1,25 @@
+<footer class="ns-rule">
+  <div class="max-w-6xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
+
+    <div class="flex items-center gap-4">
+      <a href="/" class="flex items-center h-5">
+        <img src="/branding/logo.svg" alt="NetSentry" class="h-full w-auto" style="filter: var(--logo-filter)">
+      </a>
+      <span class="text-base-content/20">|</span>
+      <span class="text-[12px] text-base-content/35">© {{ year }} NetSentry</span>
+      <span class="text-[12px] text-base-content/25">·</span>
+      <span class="text-[12px] text-base-content/35">MIT License</span>
+    </div>
+
+    <nav class="flex items-center gap-1 flex-wrap justify-center">
+      @for (link of links; track link.label) {
+        <a [href]="link.href" [target]="link.external ? '_blank' : '_self'"
+           class="px-3 py-1.5 text-[12px] text-base-content/35 hover:text-base-content/70 rounded"
+           style="transition: color 0.25s cubic-bezier(0.32,0.72,0,1)">
+          {{ link.label }}
+        </a>
+      }
+    </nav>
+
+  </div>
+</footer>

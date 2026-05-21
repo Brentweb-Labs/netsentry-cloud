@@ -7,13 +7,6 @@ members = [
     "src/shared/utils",
     "src/shared/config",
     
-    # Edge services (Raspberry Pi)
-    "src/services/edge/packet-processor",
-    "src/services/edge/network-filter", 
-    "src/services/edge/rule-engine",
-    "src/services/edge/raspi-collector",
-    "src/services/edge/telemetry",
-    
     # Cloud services (VPS)
     "src/services/cloud/packet-analyzer",
     "src/services/cloud/threat-intel",
@@ -76,6 +69,17 @@ rand = "0.9"
 # Auth
 jsonwebtoken = "9"
 bcrypt = "0.15"
+
+# Billing webhook verification
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+
+# Email alerting
+lettre = { version = "0.11", features = ["smtp-transport", "tokio1", "builder", "tokio1-native-tls"] }
+
+# PDF report generation
+printpdf = "0.7"
 
 # System metrics
 sysinfo = "0.33"

@@ -1,0 +1,78 @@
+<section id="features" class="py-24 md:py-32 ns-rule">
+  <div class="max-w-6xl mx-auto px-6">
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-8 mb-14">
+      <div class="md:col-span-1">
+        <p class="text-[11px] font-semibold tracking-[0.14em] uppercase text-primary mb-3">Platform capabilities</p>
+        <h2 class="text-[clamp(1.6rem,3vw,2.25rem)] font-extrabold tracking-[-0.022em] text-base-content leading-tight">
+          Built for networks that can't afford downtime.
+        </h2>
+      </div>
+      <div class="md:col-span-2 flex items-end">
+        <p class="text-[0.9375rem] text-base-content/50 leading-relaxed max-w-lg">
+          A complete inline threat detection pipeline from edge sensor to cloud dashboard —
+          every component engineered for reliability and sub-millisecond performance.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-px bg-base-content/10 rounded overflow-hidden border border-base-content/10">
+      @for (f of features; let i = $index; track f.title) {
+        <div class="group p-7 flex flex-col gap-4 bg-base-100 hover:bg-base-200"
+             [style]="'transition: background 0.25s cubic-bezier(0.32,0.72,0,1); animation: ns-reveal 0.6s cubic-bezier(0.32,0.72,0,1) ' + (i * 60) + 'ms both'">
+
+          <div class="w-8 h-8 rounded flex items-center justify-center shrink-0"
+               style="background: color-mix(in oklch, var(--color-primary) 10%, transparent)">
+            @switch (f.icon) {
+              @case ('shield') {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-primary" stroke-width="1.7">
+                  <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2Z"/>
+                  <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              }
+              @case ('radar') {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-primary" stroke-width="1.7">
+                  <circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10"/>
+                  <path d="M12 12L17 7" stroke-linecap="round"/>
+                </svg>
+              }
+              @case ('tunnel') {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-primary" stroke-width="1.7">
+                  <path d="M4 12a8 8 0 0 1 16 0" stroke-linecap="round"/>
+                  <path d="M4 12a8 8 0 0 0 16 0" stroke-linecap="round" stroke-dasharray="3 2"/>
+                  <path d="M12 4v4M12 16v4" stroke-linecap="round" opacity="0.4"/>
+                </svg>
+              }
+              @case ('lock') {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-primary" stroke-width="1.7">
+                  <rect x="5" y="11" width="14" height="10" rx="1"/>
+                  <path d="M8 11V7a4 4 0 1 1 8 0v4" stroke-linecap="round"/>
+                </svg>
+              }
+              @case ('failsafe') {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-primary" stroke-width="1.7">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M8 12h8M15 9l3 3-3 3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              }
+              @case ('chart') {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-primary" stroke-width="1.7">
+                  <path d="M3 17l4-8 4 5 3-3 4 6" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3 21h18" stroke-linecap="round"/>
+                </svg>
+              }
+            }
+          </div>
+
+          <div>
+            <p class="text-[10px] font-semibold tracking-[0.13em] uppercase text-base-content/35 mb-2">{{ f.eyebrow }}</p>
+            <h3 class="text-[0.9375rem] font-bold text-base-content mb-2 tracking-tight">{{ f.title }}</h3>
+            <p class="text-[0.875rem] text-base-content/50 leading-relaxed">{{ f.description }}</p>
+          </div>
+
+        </div>
+      }
+    </div>
+
+  </div>
+</section>

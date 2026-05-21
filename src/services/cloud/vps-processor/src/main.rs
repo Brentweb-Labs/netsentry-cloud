@@ -172,8 +172,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/traffic/batch", post(process_batch_traffic))
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8090").await?;
-    info!("VPS Processor listening on 0.0.0.0:8090");
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8093").await?;
+    info!("VPS Processor listening on 0.0.0.0:8093");
 
     axum::serve(listener, app).await?;
 
@@ -225,7 +225,7 @@ async fn process_traffic(
     
     // Store in MongoDB
     let collection = state.mongo_client
-        .database("idps")
+        .database("idps_database")
         .collection::<EveEvent>("events");
     
     match collection.insert_one(&eve_event).await {
@@ -272,7 +272,7 @@ async fn process_batch_traffic(
     
     // Store in MongoDB using bulk insert
     let collection = state.mongo_client
-        .database("idps")
+        .database("idps_database")
         .collection::<EveEvent>("events");
     
     match collection.insert_many(eve_events).await {

@@ -180,7 +180,7 @@ impl LogProcessor {
 
         let collection = self
             .mongo_client
-            .database("idps")
+            .database("idps_database")
             .collection::<EveEvent>("events");
 
         let mut batch = Vec::new();
@@ -473,7 +473,7 @@ impl LogProcessor {
     async fn is_repeated_offender(&self, ip: &str) -> Result<bool> {
         let collection = self
             .mongo_client
-            .database("idps")
+            .database("idps_database")
             .collection::<Document>("events");
 
         // Check for more than 5 alerts from same IP in last hour

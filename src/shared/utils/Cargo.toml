@@ -1,0 +1,8 @@
+[package]
+name = "idps-utils"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ipnetwork = { workspace = true }
+anyhow = { workspace = true }

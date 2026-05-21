@@ -126,8 +126,15 @@ pub fn generate_port_scan_rule(ip: &str, duration_hours: u64) -> GeneratedRule {
     }
 }
 
-/// Derive a stable Suricata SID from an IP address.
-/// Uses range 9_000_000+ to avoid conflicts with community rules.
+/// Derive a stable Suricata SID from an IP address using FNV-1a.
+/// Uses range 9_000_000–9_999_999 to avoid conflicts with community rules.
 fn ip_to_sid(ip: &str) -> u64 {
-    9_000_000 + ip.bytes().fold(0u64, |acc, b| acc.wrapping_add(b as u64))
+    const FNV_OFFSET: u64 = 14_695_981_039_346_656_037;
+    const FNV_PRIME: u64 = 1_099_511_628_211;
+    let mut hash = FNV_OFFSET;
+    for byte in ip.bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    9_000_000 + (hash % 1_000_000)
 }

@@ -1,0 +1,108 @@
+<section id="architecture" class="py-24 md:py-32 ns-rule">
+  <div class="max-w-6xl mx-auto px-6">
+
+    <!-- Section header -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-6 mb-14">
+      <div>
+        <p class="text-[11px] font-semibold tracking-[0.14em] uppercase text-primary mb-3">How it works</p>
+        <h2 class="text-[clamp(1.6rem,3vw,2.25rem)] font-extrabold tracking-[-0.022em] text-base-content leading-tight">
+          Edge enforcement.<br>Cloud intelligence.
+        </h2>
+      </div>
+      <div class="md:col-span-2 flex items-end">
+        <p class="text-[0.9375rem] text-base-content/50 leading-relaxed">
+          The sensor sits inline on your physical bridge — the only node with direct access to traffic.
+          The cloud VPS analyses events and commands enforcement. Neither role is interchangeable.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+      <!-- Steps -->
+      <div class="ns-card rounded overflow-hidden">
+        <div class="px-5 py-3 ns-rule">
+          <span class="text-[11px] font-semibold tracking-[0.14em] uppercase text-base-content/35">Threat pipeline</span>
+        </div>
+        @for (step of steps; let i = $index; track step.step) {
+          <div class="flex items-start gap-4 px-5 py-4 bg-base-100 hover:bg-base-200"
+               [class.ns-rule]="!$last"
+               style="transition: background 0.25s cubic-bezier(0.32,0.72,0,1)">
+            <span class="font-mono text-[11px] font-bold shrink-0 mt-0.5 w-5 text-right"
+                  [class.text-primary]="i < 2"
+                  [class.text-base-content]="i >= 2 && i < 4"
+                  [class.opacity-60]="i >= 2 && i < 4"
+                  [class.text-warning]="i >= 4">{{ step.step }}</span>
+            <div>
+              <p class="text-[0.875rem] font-semibold text-base-content mb-0.5">{{ step.title }}</p>
+              <p class="text-[0.8125rem] text-base-content/45 leading-relaxed">{{ step.description }}</p>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Topology diagram -->
+      <div class="ns-card rounded overflow-hidden ns-scanlines">
+        <div class="px-5 py-3 ns-rule flex items-center gap-2">
+          <span class="ns-dot-live"></span>
+          <span class="text-[11px] font-semibold tracking-[0.14em] uppercase text-base-content/35">Network topology</span>
+        </div>
+        <div class="px-5 py-5">
+          <pre class="font-mono text-[11.5px] leading-[1.9] text-base-content/55 overflow-x-auto"><span class="text-base-content/30">[Internet]</span>
+    │
+<span class="text-base-content/30">[Modem / ISP gateway]</span>
+    │
+<span class="text-primary font-semibold">[Pi  eth0]</span>    ←  WAN ingress
+    │
+<span class="text-primary font-semibold">[br0 bridge]</span>  ←  inline analysis
+    │            ⟷  WireGuard tunnel
+    │         <span class="text-base-content font-semibold opacity-70">[VPS  api-gateway]</span>
+    │            ⟷  block / rule sync
+<span class="text-warning font-semibold">[net-filter]</span>  ←  iptables DROP
+    │
+<span class="text-base-content/30">[LAN / Wi-Fi clients]</span></pre>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Detection coverage table -->
+    <div class="ns-card rounded overflow-hidden">
+      <div class="px-5 py-3 ns-rule">
+        <span class="text-[11px] font-semibold tracking-[0.14em] uppercase text-base-content/35">Detection coverage</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-[13px]">
+          <thead>
+            <tr class="ns-rule bg-base-200">
+              <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-base-content/35 font-sans">Threat class</th>
+              <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-base-content/35 font-sans">Detection method</th>
+              <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-base-content/35 font-sans">Severity</th>
+              <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-base-content/35 font-sans">Response</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of detections; track row.threat) {
+              <tr class="ns-rule bg-base-100 hover:bg-base-200" style="transition: background 0.2s">
+                <td class="px-5 py-3 font-semibold text-base-content">{{ row.threat }}</td>
+                <td class="px-5 py-3 text-base-content/50 font-mono text-[12px]">{{ row.method }}</td>
+                <td class="px-5 py-3">
+                  <span class="inline-flex items-center gap-1 text-[11px] font-bold"
+                        [class.text-error]="row.level >= 9"
+                        [class.text-warning]="row.level === 7 || row.level === 8">
+                    <span class="w-1 h-1 rounded-full" style="background:currentColor"></span>
+                    {{ row.level }}/10
+                  </span>
+                </td>
+                <td class="px-5 py-3">
+                  <span class="text-[11px] font-semibold text-primary uppercase tracking-wide">{{ row.action }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>

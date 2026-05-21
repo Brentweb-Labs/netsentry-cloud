@@ -1,0 +1,150 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: nord --default, business --prefersdark;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Override DaisyUI theme tokens — tighter radius, logo-matched
+   primary colour (#3490de ≈ oklch 60% 0.148 244)
+   ───────────────────────────────────────────────────────────── */
+[data-theme="nord"] {
+  --logo-filter: none;
+  --color-primary:         oklch(60% 0.148 244);
+  --color-primary-content: oklch(98% 0.008 244);
+  --radius-selector: 0.25rem;
+  --radius-field:    0.25rem;
+  --radius-box:      0.375rem;
+}
+
+[data-theme="business"] {
+  --logo-filter: brightness(0) invert(1) opacity(0.85);
+  --color-primary:         oklch(60% 0.148 244);
+  --color-primary-content: oklch(98% 0.008 244);
+  --radius-selector: 0.25rem;
+  --radius-field:    0.25rem;
+  --radius-box:      0.375rem;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Fonts
+   ───────────────────────────────────────────────────────────── */
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Base
+   ───────────────────────────────────────────────────────────── */
+@layer base {
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    background-color: var(--color-base-100);
+    color: var(--color-base-content);
+  }
+
+  code, pre, kbd, samp { font-family: var(--font-mono); }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Component utilities
+   ───────────────────────────────────────────────────────────── */
+@layer utilities {
+
+  /* Sticky nav backdrop — only apply blur on fixed/sticky elements */
+  .ns-nav-bg {
+    background: color-mix(in oklch, var(--color-base-100) 92%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid color-mix(in oklch, var(--color-base-content) 8%, transparent);
+  }
+
+  /* Card border + surface */
+  .ns-card {
+    background: var(--color-base-100);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 9%, transparent);
+    box-shadow: 0 1px 4px color-mix(in oklch, var(--color-base-content) 4%, transparent);
+  }
+
+  .ns-card-raised {
+    background: var(--color-base-200);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 9%, transparent);
+    box-shadow: 0 1px 4px color-mix(in oklch, var(--color-base-content) 4%, transparent);
+  }
+
+  /* Featured / primary-accented card */
+  .ns-card-accent {
+    background: var(--color-base-100);
+    border: 1px solid color-mix(in oklch, var(--color-primary) 35%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--color-primary) 10%, transparent),
+      0 4px 16px color-mix(in oklch, var(--color-primary) 8%, transparent);
+  }
+
+  /* Divider line */
+  .ns-rule {
+    border-top: 1px solid color-mix(in oklch, var(--color-base-content) 8%, transparent);
+  }
+
+  /* Status dot */
+  .ns-dot-live {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background: var(--color-primary);
+    animation: ns-pulse-ring 2.2s cubic-bezier(0.32, 0.72, 0, 1) infinite;
+  }
+
+  /* Entry animations */
+  .ns-reveal-1 { animation: ns-reveal 0.7s cubic-bezier(0.32, 0.72, 0, 1) 0.05s both; }
+  .ns-reveal-2 { animation: ns-reveal 0.7s cubic-bezier(0.32, 0.72, 0, 1) 0.13s both; }
+  .ns-reveal-3 { animation: ns-reveal 0.7s cubic-bezier(0.32, 0.72, 0, 1) 0.22s both; }
+  .ns-reveal-4 { animation: ns-reveal 0.7s cubic-bezier(0.32, 0.72, 0, 1) 0.32s both; }
+
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity   0.6s cubic-bezier(0.32, 0.72, 0, 1),
+      transform 0.6s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  [data-reveal].visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Scanline for terminal blocks */
+  .ns-scanlines { position: relative; }
+  .ns-scanlines::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      color-mix(in oklch, var(--color-base-content) 2.5%, transparent) 0px,
+      color-mix(in oklch, var(--color-base-content) 2.5%, transparent) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+    pointer-events: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Keyframes
+   ───────────────────────────────────────────────────────────── */
+@keyframes ns-reveal {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ns-pulse-ring {
+  0%   { box-shadow: 0 0 0 0   color-mix(in oklch, var(--color-primary) 50%, transparent); }
+  70%  { box-shadow: 0 0 0 6px color-mix(in oklch, var(--color-primary) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0   color-mix(in oklch, var(--color-primary) 0%, transparent); }
+}

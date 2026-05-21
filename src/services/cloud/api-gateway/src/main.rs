@@ -1,7 +1,11 @@
+mod billing;
+mod alerting;
+mod reporting;
+
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
-    http::{StatusCode, Request, HeaderValue, Method},
+    http::{StatusCode, Request, Method},
     middleware::{self, Next},
     response::{IntoResponse, Json, Response},
     routing::{delete, get, post, put},
@@ -10,7 +14,7 @@ use axum::{
 use tower_http::cors::{CorsLayer, Any};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use log::info;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, Timelike, Utc};
 use dashmap::DashMap;
 use futures_util::TryStreamExt;
 use idps_rule_generator::{generate_ip_block_rule, generate_ddos_rule};
@@ -46,6 +50,16 @@ struct AppState {
     raspi_connection_cache: Arc<RwLock<ConnectionStatus>>,
     /// Broadcast channel: send BlockCommand/RuleUpdate JSON to all connected Raspi WS clients
     raspi_tx: broadcast::Sender<String>,
+    /// URL of the threat-intel sidecar service (default: http://threat-intel:8094)
+    threat_intel_url: String,
+    // ── Stripe billing ──────────────────────────────────────────────────────────
+    stripe_secret: String,
+    stripe_price_id: String,
+    stripe_webhook_secret: String,
+    // ── Alerting ────────────────────────────────────────────────────────────────
+    alerting_config: Arc<alerting::AlertingConfig>,
+    // ── Reporting ───────────────────────────────────────────────────────────────
+    report_config: Arc<RwLock<HashMap<String, reporting::ReportConfig>>>,
 }
 
 /// Detection / anomaly settings (persisted in MongoDB `detection_settings`)
@@ -413,8 +427,31 @@ async fn read_machine_metrics() -> MachineMetrics {
     .await
     .unwrap_or((0.0, 0.0));
 
-    // /proc/stat CPU usage requires two samples; return a simple estimate
-    let cpu_usage_percent = 0.0_f64;
+    // Two-sample /proc/stat read with 200 ms gap for real CPU usage
+    let cpu_usage_percent = tokio::task::spawn_blocking(|| -> f64 {
+        fn read_stat_values() -> Option<(u64, u64)> {
+            let content = std::fs::read_to_string("/proc/stat").ok()?;
+            let line = content.lines().next()?; // first line: "cpu  ..."
+            let nums: Vec<u64> = line
+                .split_whitespace()
+                .skip(1)
+                .filter_map(|v| v.parse().ok())
+                .collect();
+            if nums.len() < 4 { return None; }
+            let idle = nums[3];
+            let total: u64 = nums.iter().sum();
+            Some((idle, total))
+        }
+        let Some((idle1, total1)) = read_stat_values() else { return 0.0; };
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        let Some((idle2, total2)) = read_stat_values() else { return 0.0; };
+        let delta_total = total2.saturating_sub(total1);
+        let delta_idle = idle2.saturating_sub(idle1);
+        if delta_total == 0 { return 0.0; }
+        ((delta_total - delta_idle) as f64 / delta_total as f64) * 100.0
+    })
+    .await
+    .unwrap_or(0.0);
 
     MachineMetrics {
         cpu_usage_percent,
@@ -477,6 +514,27 @@ async fn main() -> anyhow::Result<()> {
     println!("Connected to MongoDB successfully");
     println!("Raspi endpoint: {}", raspi_endpoint);
 
+    let threat_intel_url = std::env::var("THREAT_INTEL_URL")
+        .unwrap_or_else(|_| "http://threat-intel:8094".to_string());
+
+    let stripe_secret = std::env::var("STRIPE_SECRET_KEY").unwrap_or_default();
+    let stripe_price_id = std::env::var("STRIPE_PRICE_ID").unwrap_or_default();
+    let stripe_webhook_secret = std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default();
+
+    let alerting_config = Arc::new(alerting::AlertingConfig {
+        smtp_host: std::env::var("SMTP_HOST").unwrap_or_default(),
+        smtp_port: std::env::var("SMTP_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(587),
+        smtp_username: std::env::var("SMTP_USERNAME").unwrap_or_default(),
+        smtp_password: std::env::var("SMTP_PASSWORD").unwrap_or_default(),
+        from_address: std::env::var("SMTP_FROM").unwrap_or_else(|_| "alerts@netsentry.io".into()),
+        twilio_account_sid: std::env::var("TWILIO_ACCOUNT_SID").unwrap_or_default(),
+        twilio_auth_token: std::env::var("TWILIO_AUTH_TOKEN").unwrap_or_default(),
+        twilio_from_number: std::env::var("TWILIO_FROM_NUMBER").unwrap_or_default(),
+    });
+
+    let report_config: Arc<RwLock<HashMap<String, reporting::ReportConfig>>> =
+        Arc::new(RwLock::new(HashMap::new()));
+
     let state = Arc::new(AppState {
         mongo_client,
         raspi_client,
@@ -488,6 +546,12 @@ async fn main() -> anyhow::Result<()> {
         dashboard_tx,
         raspi_tx,
         raspi_connection_cache,
+        threat_intel_url,
+        stripe_secret,
+        stripe_price_id,
+        stripe_webhook_secret,
+        alerting_config,
+        report_config,
     });
 
     let detection_state = state.clone();
@@ -586,6 +650,50 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
+    // Weekly report scheduler: ticks every hour, fires on Monday 08:00 UTC
+    let report_state = state.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(3600));
+        loop {
+            interval.tick().await;
+            let now = Utc::now();
+            // Monday = 0 in num_days_from_monday(), fire at 08:00 UTC
+            if now.weekday().num_days_from_monday() == 0 && now.hour() == 8 {
+                let db = report_state.mongo_client.database("idps_database");
+                let tenants_coll = db.collection::<serde_json::Value>("tenants");
+                if let Ok(mut cursor) = tenants_coll.find(doc! { "active": true }).await {
+                    while let Ok(Some(tenant_doc)) = cursor.try_next().await {
+                        let tid = tenant_doc["tenant_id"].as_str().unwrap_or("default").to_string();
+                        let days_since_monday = now.weekday().num_days_from_monday() as i64;
+                        let week_start = (now - chrono::Duration::days(days_since_monday + 7))
+                            .date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc();
+                        let cfg = {
+                            let map = report_state.report_config.read().await;
+                            map.get(&tid).cloned().unwrap_or_default()
+                        };
+                        match reporting::generate_weekly_report(&report_state.mongo_client, &tid, &cfg, week_start).await {
+                            Ok(pdf_bytes) => {
+                                let size = pdf_bytes.len();
+                                let report_doc = serde_json::json!({
+                                    "tenant_id": &tid,
+                                    "period_start": week_start,
+                                    "period_end": week_start + chrono::Duration::days(7),
+                                    "generated_at": Utc::now(),
+                                    "pdf_bytes": pdf_bytes,
+                                    "size_bytes": size,
+                                });
+                                let _ = db.collection::<serde_json::Value>("reports")
+                                    .insert_one(report_doc).await;
+                                tracing::info!("Weekly report generated for tenant {}", tid);
+                            }
+                            Err(e) => tracing::warn!("Weekly report failed for tenant {}: {}", tid, e),
+                        }
+                    }
+                }
+            }
+        }
+    });
+
     if std::env::var("JWT_SECRET").unwrap_or_default().is_empty() {
         println!("⚠️  JWT_SECRET not set — using insecure default. Set it in .env!");
     }
@@ -645,6 +753,23 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/traffic", post(ingest_traffic_event))
         .route("/api/traffic/batch", post(ingest_traffic_batch))
         .route("/metrics", get(prometheus_metrics))
+        // Billing
+        .route("/api/billing/checkout", post(billing_checkout))
+        .route("/api/billing/status", get(billing_status))
+        .route("/api/billing/webhook", post(billing_webhook))
+        // Alert rules
+        .route("/api/alerts/rules", get(get_alert_rules))
+        .route("/api/alerts/rules", post(create_alert_rule))
+        .route("/api/alerts/rules/{id}", delete(delete_alert_rule))
+        // Compliance reports
+        .route("/api/reports/weekly", get(get_weekly_report))
+        .route("/api/reports/history", get(get_reports_history))
+        .route("/api/reports/config", post(update_report_config))
+        // Suricata control (relayed to Raspi via WebSocket)
+        .route("/api/suricata/start", post(suricata_start))
+        .route("/api/suricata/stop", post(suricata_stop))
+        .route("/api/suricata/restart", post(suricata_restart))
+        .route("/api/suricata/exec", post(suricata_exec))
         // Config endpoint — no auth, used by dashboard to discover auth requirements
         .route("/api/config", get(get_config))
         // WebSocket endpoints
@@ -912,7 +1037,9 @@ async fn get_status(
 async fn get_events_paginated(
     State(state): State<Arc<AppState>>,
     Query(params): Query<PaginationParams>,
+    tid: Option<Extension<TenantId>>,
 ) -> Result<Json<ApiResponse<PaginatedEvents>>, StatusCode> {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
     let collection = state
         .mongo_client
         .database("idps_database")
@@ -922,7 +1049,7 @@ async fn get_events_paginated(
     let limit = params.limit.unwrap_or(100).min(1000); // Cap at 1000
     let skip = (page - 1) * limit;
 
-    let mut filter = doc! {};
+    let mut filter = doc! { "tenant_id": &tenant_id };
     if let Some(event_type) = &params.event_type {
         filter.insert("event_type", event_type);
     }
@@ -974,24 +1101,26 @@ async fn get_events(
     State(state): State<Arc<AppState>>,
     Query(params): Query<PaginationParams>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let Json(result) = get_events_paginated(State(state), Query(params)).await?;
+    let Json(result) = get_events_paginated(State(state), Query(params), None).await?;
     let value = serde_json::to_value(result).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(value))
 }
 
 async fn get_alert_statistics(
     State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
 ) -> Result<Json<ApiResponse<AlertStatistics>>, StatusCode> {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
     let collection = state
         .mongo_client
         .database("idps_database")
         .collection::<EveEvent>("events");
 
-    let alert_filter = doc! { "event_type": "alert" };
+    let alert_filter = doc! { "tenant_id": &tenant_id, "event_type": "alert" };
     let total_alerts = collection.count_documents(alert_filter).await.unwrap_or(0);
 
     let mut pipeline = vec![
-        doc! { "$match": { "event_type": "alert" } },
+        doc! { "$match": { "tenant_id": &tenant_id, "event_type": "alert" } },
         doc! { "$group": {
             "_id": "$alert.severity",
             "count": { "$sum": 1 }
@@ -1012,7 +1141,7 @@ async fn get_alert_statistics(
 
     let mut by_type = HashMap::new();
     pipeline = vec![
-        doc! { "$match": { "event_type": "alert" } },
+        doc! { "$match": { "tenant_id": &tenant_id, "event_type": "alert" } },
         doc! { "$group": {
             "_id": "$alert.category",
             "count": { "$sum": 1 }
@@ -1536,31 +1665,32 @@ async fn get_vps_status(
 
 async fn block_ip_manual(
     State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
     Json(request): Json<ManualBlockRequest>,
 ) -> Result<Json<ApiResponse<PreventionActionResponse>>, StatusCode> {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
     let duration_hours = request.duration_hours.unwrap_or(1);
 
     // Persist the block intent to MongoDB on the VPS so it survives restarts and
     // is queryable by the dashboard without needing the Raspi to be online.
     let blocked_at = chrono::Utc::now();
     let expires_at = blocked_at + chrono::Duration::hours(duration_hours as i64);
-    let record = BlockedIpRecord {
-        ip: request.ip.clone(),
-        reason: request.reason.clone(),
-        severity: 8,
-        source: "manual_dashboard".to_string(),
-        blocked_at: blocked_at.to_rfc3339(),
-        expires_at: expires_at.to_rfc3339(),
-        active: true,
-        blocked_at_dt: Some(mongodb::bson::DateTime::from_millis(blocked_at.timestamp_millis())),
-        expires_at_dt: Some(mongodb::bson::DateTime::from_millis(expires_at.timestamp_millis())),
-        unblocked_at_dt: None,
-        unblock_reason: None,
-    };
+    let record = serde_json::json!({
+        "tenant_id": &tenant_id,
+        "ip": &request.ip,
+        "reason": &request.reason,
+        "severity": 8u8,
+        "source": "manual_dashboard",
+        "blocked_at": blocked_at.to_rfc3339(),
+        "expires_at": expires_at.to_rfc3339(),
+        "active": true,
+        "blocked_at_dt": mongodb::bson::DateTime::from_millis(blocked_at.timestamp_millis()),
+        "expires_at_dt": mongodb::bson::DateTime::from_millis(expires_at.timestamp_millis()),
+    });
     let collection = state
         .mongo_client
         .database("idps_database")
-        .collection::<BlockedIpRecord>("blocked_ips");
+        .collection::<serde_json::Value>("blocked_ips");
     if let Err(e) = collection.insert_one(record).await {
         tracing::warn!("Failed to persist block record for {} to MongoDB: {}", request.ip, e);
     }
@@ -1627,7 +1757,9 @@ async fn unblock_ip_manual(
 
 async fn get_blocked_ips(
     State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
 ) -> Result<Json<ApiResponse<Vec<serde_json::Value>>>, StatusCode> {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
     let collection = state
         .mongo_client
         .database("idps_database")
@@ -1636,7 +1768,7 @@ async fn get_blocked_ips(
         .sort(mongodb::bson::doc! { "blocked_at_dt": -1 })
         .build();
     let mut cursor = collection
-        .find(mongodb::bson::doc! { "active": true })
+        .find(mongodb::bson::doc! { "tenant_id": &tenant_id, "active": true })
         .with_options(find_opts)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -1667,17 +1799,19 @@ async fn get_blocked_ips(
 
 async fn get_prevention_stats(
     State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
 ) -> Result<Json<ApiResponse<serde_json::Value>>, StatusCode> {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
     let collection = state
         .mongo_client
         .database("idps_database")
         .collection::<BlockedIpRecord>("blocked_ips");
     let active_count = collection
-        .count_documents(mongodb::bson::doc! { "active": true })
+        .count_documents(mongodb::bson::doc! { "tenant_id": &tenant_id, "active": true })
         .await
         .unwrap_or(0);
     let total_count = collection
-        .count_documents(mongodb::bson::doc! {})
+        .count_documents(mongodb::bson::doc! { "tenant_id": &tenant_id })
         .await
         .unwrap_or(0);
     Ok(Json(ApiResponse {
@@ -2499,11 +2633,30 @@ struct LoginResponse {
     expires_in: u64,
 }
 
+/// Newtype wrapping the tenant_id extracted from a JWT claim.
+/// Injected as an Axum request extension by `jwt_auth`.
+#[derive(Clone)]
+struct TenantId(String);
+
+/// MongoDB tenant document.
+#[derive(Debug, Serialize, Deserialize)]
+struct Tenant {
+    tenant_id: String,
+    name: String,
+    plan: String,
+    stripe_customer_id: Option<String>,
+    stripe_subscription_id: Option<String>,
+    node_count: u32,
+    created_at: DateTime<Utc>,
+    active: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct JwtClaims {
     sub: String,
     exp: usize,
     iat: usize,
+    tenant_id: String,
 }
 
 // ─── Login Handler ────────────────────────────────────────────────────────────
@@ -2525,7 +2678,8 @@ async fn login_handler(Json(req): Json<LoginRequest>) -> Response {
     }
 
     let now = Utc::now().timestamp() as usize;
-    let claims = JwtClaims { sub: req.username, exp: now + 86_400, iat: now };
+    let tenant_id = std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into());
+    let claims = JwtClaims { sub: req.username, exp: now + 86_400, iat: now, tenant_id };
 
     match jsonwebtoken::encode(&Header::default(), &claims, &EncodingKey::from_secret(jwt_secret.as_bytes())) {
         Ok(token) => (StatusCode::OK, Json(LoginResponse { token, expires_in: 86_400 })).into_response(),
@@ -2536,7 +2690,9 @@ async fn login_handler(Json(req): Json<LoginRequest>) -> Response {
 // ─── JWT Auth Middleware ──────────────────────────────────────────────────────
 
 const PUBLIC_PATHS: &[&str] = &[
-    "/", "/health", "/api/health", "/api/config", "/metrics", "/api/auth/login", "/api/vps/auth/login",
+    "/", "/health", "/api/health", "/api/config", "/metrics",
+    "/api/auth/login", "/api/vps/auth/login",
+    "/api/billing/webhook",
 ];
 
 /// Paths used exclusively by edge devices — skip JWT, still require IP whitelist.
@@ -2576,7 +2732,11 @@ async fn jwt_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     };
 
     match jsonwebtoken::decode::<JwtClaims>(&token, &DecodingKey::from_secret(jwt_secret.as_bytes()), &Validation::default()) {
-        Ok(_) => next.run(request).await,
+        Ok(token_data) => {
+            let mut request = request;
+            request.extensions_mut().insert(TenantId(token_data.claims.tenant_id));
+            next.run(request).await
+        }
         Err(_) => (StatusCode::UNAUTHORIZED, Json(serde_json::json!({ "error": "Invalid or expired token" }))).into_response(),
     }
 }
@@ -2690,7 +2850,8 @@ fn broadcast_unblock_command(
     let _ = state.raspi_tx.send(msg.to_string());
 }
 
-/// Broadcast an alert to all connected dashboard WebSocket clients.
+/// Broadcast an alert to all connected dashboard WebSocket clients,
+/// and fire any matching email/SMS alert rules.
 fn broadcast_dashboard_alert(
     state: &Arc<AppState>,
     src_ip: &str,
@@ -2710,6 +2871,17 @@ fn broadcast_dashboard_alert(
         "auto_blocked": auto_blocked
     });
     let _ = state.dashboard_tx.send(msg.to_string());
+
+    // Fire email/SMS rules asynchronously (default tenant for background detections)
+    let state_clone = state.clone();
+    let sev = severity.to_string();
+    let subj = format!("[NetSentry] {} alert from {}", category, src_ip);
+    let body = format!(
+        "<p><b>Severity:</b> {sev}</p><p><b>Source IP:</b> {src_ip}</p><p><b>Message:</b> {message}</p>"
+    );
+    tokio::spawn(async move {
+        fire_alert_rules(&state_clone, "default", &sev, &subj, &body).await;
+    });
 }
 
 // ─── Packet Streaming WebSocket (/ws/packets) ─────────────────────────────────
@@ -2941,7 +3113,7 @@ async fn persist_and_broadcast_rule(
         "active": true,
         "src_ip": ip,
     });
-    let coll = state.mongo_client.database("idps").collection::<serde_json::Value>("security_rules");
+    let coll = state.mongo_client.database("idps_database").collection::<serde_json::Value>("security_rules");
     if let Err(e) = coll.insert_one(rule_doc).await {
         tracing::warn!("Failed to persist security rule for {}: {}", ip, e);
     }
@@ -2958,7 +3130,7 @@ async fn persist_and_broadcast_rule(
         "expires_at": expires_at.to_rfc3339(),
         "active": true,
     });
-    let blocked_coll = state.mongo_client.database("idps").collection::<serde_json::Value>("blocked_ips");
+    let blocked_coll = state.mongo_client.database("idps_database").collection::<serde_json::Value>("blocked_ips");
     let _ = blocked_coll.insert_one(record).await;
 
     // 3. Broadcast block_command to Raspi WebSocket.
@@ -3179,8 +3351,10 @@ struct SuricataAlertNotification {
 /// store it in MongoDB, and push it to the dashboard WebSocket channel.
 async fn ingest_suricata_alert(
     State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
     Json(alert): Json<SuricataAlertNotification>,
 ) -> Result<Json<Value>, StatusCode> {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
     // Map Suricata severity (1=critical … 7=low) to a human label
     let severity_label = match alert.severity {
         1 => "critical",
@@ -3204,6 +3378,7 @@ async fn ingest_suricata_alert(
         .collection::<Value>("suricata_alerts");
 
     let doc = serde_json::json!({
+        "tenant_id": &tenant_id,
         "timestamp": &alert.timestamp,
         "src_ip": &alert.src_ip,
         "dest_ip": &alert.dest_ip,
@@ -3221,6 +3396,38 @@ async fn ingest_suricata_alert(
 
     if let Err(e) = coll.insert_one(doc).await {
         tracing::warn!("Failed to store Suricata alert: {}", e);
+    }
+
+    // Fire-and-forget threat-intel enrichment: upgrade label if score >= 0.7
+    {
+        let ti_url = state.threat_intel_url.clone();
+        let src = alert.src_ip.clone();
+        let dashboard_tx = state.dashboard_tx.clone();
+        tokio::spawn(async move {
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(3))
+                .build()
+                .unwrap_or_default();
+            if let Ok(resp) = client
+                .post(format!("{}/api/v1/lookup", ti_url))
+                .json(&serde_json::json!({ "ip": &src }))
+                .send()
+                .await
+            {
+                if let Ok(body) = resp.json::<serde_json::Value>().await {
+                    let score = body["score"].as_f64().unwrap_or(0.0);
+                    if score >= 0.7 {
+                        let msg = serde_json::json!({
+                            "type": "threat_intel_hit",
+                            "src_ip": &src,
+                            "score": score,
+                            "is_tor_exit": body["is_tor_exit"].as_bool().unwrap_or(false),
+                        });
+                        let _ = dashboard_tx.send(msg.to_string());
+                    }
+                }
+            }
+        });
     }
 
     // Broadcast real-time alert to all dashboard WebSocket clients
@@ -3445,6 +3652,47 @@ async fn process_suricata_alert_from_batch(
     }
 }
 
+// ─── Suricata Control Handlers ─────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct SuricataExecRequest {
+    command: Option<String>,
+}
+
+fn broadcast_suricata_command(state: &Arc<AppState>, command: &str, params: Option<serde_json::Value>) {
+    let msg = serde_json::json!({
+        "type": "suricata_command",
+        "command": command,
+        "params": params,
+        "timestamp": Utc::now(),
+    });
+    let _ = state.raspi_tx.send(msg.to_string());
+}
+
+async fn suricata_start(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    broadcast_suricata_command(&state, "start", None);
+    Json(serde_json::json!({ "success": true, "command": "start", "message": "Start command sent to edge device" }))
+}
+
+async fn suricata_stop(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    broadcast_suricata_command(&state, "stop", None);
+    Json(serde_json::json!({ "success": true, "command": "stop", "message": "Stop command sent to edge device" }))
+}
+
+async fn suricata_restart(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    broadcast_suricata_command(&state, "restart", None);
+    Json(serde_json::json!({ "success": true, "command": "restart", "message": "Restart command sent to edge device" }))
+}
+
+async fn suricata_exec(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<SuricataExecRequest>,
+) -> impl IntoResponse {
+    let cmd = body.command.as_deref().unwrap_or("").to_string();
+    broadcast_suricata_command(&state, "exec", Some(serde_json::json!({ "command": cmd })));
+    Json(serde_json::json!({ "success": true, "command": "exec", "params": cmd }))
+}
+
 async fn get_config() -> impl IntoResponse {
     Json(serde_json::json!({
         "auth": "jwt",
@@ -3453,12 +3701,349 @@ async fn get_config() -> impl IntoResponse {
     }))
 }
 
+// ─── Report Handlers (F2) ────────────────────────────────────────────────────
+
+async fn get_weekly_report(
+    State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
+) -> impl IntoResponse {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    // Generate for the most recent completed Monday–Sunday week
+    let now = Utc::now();
+    let days_since_monday = now.weekday().num_days_from_monday() as i64;
+    let week_start = (now - chrono::Duration::days(days_since_monday + 7))
+        .date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc();
+
+    let cfg = {
+        let map = state.report_config.read().await;
+        map.get(&tenant_id).cloned().unwrap_or_default()
+    };
+
+    match reporting::generate_weekly_report(&state.mongo_client, &tenant_id, &cfg, week_start).await {
+        Ok(pdf_bytes) => {
+            let filename = format!("netsentry-report-{}.pdf", week_start.format("%Y-%m-%d"));
+            (
+                axum::http::StatusCode::OK,
+                [
+                    (axum::http::header::CONTENT_TYPE, "application/pdf"),
+                    (axum::http::header::CONTENT_DISPOSITION,
+                     Box::leak(format!("attachment; filename=\"{}\"", filename).into_boxed_str()) as &str),
+                ],
+                pdf_bytes,
+            ).into_response()
+        }
+        Err(e) => {
+            tracing::warn!("Report generation failed: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR,
+             Json(serde_json::json!({ "error": "Report generation failed" }))).into_response()
+        }
+    }
+}
+
+async fn get_reports_history(
+    State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
+) -> impl IntoResponse {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    let coll = state.mongo_client.database("idps_database")
+        .collection::<serde_json::Value>("reports");
+    let opts = mongodb::options::FindOptions::builder()
+        .sort(doc! { "period_start": -1 })
+        .limit(20)
+        .projection(doc! { "pdf_bytes": 0 }) // exclude large blob from list
+        .build();
+    let mut cursor = match coll.find(doc! { "tenant_id": &tenant_id }).with_options(opts).await {
+        Ok(c) => c,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let mut reports: Vec<serde_json::Value> = Vec::new();
+    while let Ok(Some(doc)) = cursor.try_next().await {
+        reports.push(doc);
+    }
+    Json(serde_json::json!({ "success": true, "reports": reports })).into_response()
+}
+
+#[derive(Debug, Deserialize)]
+struct ReportConfigRequest {
+    agency_name: Option<String>,
+    agency_logo_url: Option<String>,
+    primary_color: Option<String>,
+}
+
+async fn update_report_config(
+    State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
+    Json(req): Json<ReportConfigRequest>,
+) -> impl IntoResponse {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    let mut map = state.report_config.write().await;
+    let cfg = map.entry(tenant_id.clone()).or_insert_with(reporting::ReportConfig::default);
+    if let Some(name) = req.agency_name { cfg.agency_name = name; }
+    if let Some(logo) = req.agency_logo_url { cfg.agency_logo_url = Some(logo); }
+    if let Some(color) = req.primary_color { cfg.primary_color = color; }
+    Json(serde_json::json!({ "success": true })).into_response()
+}
+
+// ─── Alert Rule Handlers (E2) ─────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct CreateAlertRuleRequest {
+    rule_type: String,
+    destination: String,
+    min_severity: String,
+}
+
+async fn get_alert_rules(
+    State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
+) -> impl IntoResponse {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    let coll = state.mongo_client.database("idps_database")
+        .collection::<serde_json::Value>("alert_rules");
+    let mut cursor = match coll.find(doc! { "tenant_id": &tenant_id }).await {
+        Ok(c) => c,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let mut rules: Vec<serde_json::Value> = Vec::new();
+    while let Ok(Some(doc)) = cursor.try_next().await {
+        rules.push(doc);
+    }
+    Json(serde_json::json!({ "success": true, "rules": rules })).into_response()
+}
+
+async fn create_alert_rule(
+    State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
+    Json(req): Json<CreateAlertRuleRequest>,
+) -> impl IntoResponse {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    let rule = serde_json::json!({
+        "tenant_id": &tenant_id,
+        "rule_type": &req.rule_type,
+        "destination": &req.destination,
+        "min_severity": &req.min_severity,
+        "enabled": true,
+        "created_at": Utc::now(),
+    });
+    let coll = state.mongo_client.database("idps_database")
+        .collection::<serde_json::Value>("alert_rules");
+    match coll.insert_one(rule).await {
+        Ok(res) => Json(serde_json::json!({ "success": true, "id": res.inserted_id.to_string() })).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+}
+
+async fn delete_alert_rule(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    tid: Option<Extension<TenantId>>,
+) -> impl IntoResponse {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    let oid = match mongodb::bson::oid::ObjectId::parse_str(&id) {
+        Ok(o) => o,
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
+    let coll = state.mongo_client.database("idps_database")
+        .collection::<serde_json::Value>("alert_rules");
+    let _ = coll.delete_one(doc! { "_id": oid, "tenant_id": &tenant_id }).await;
+    Json(serde_json::json!({ "success": true })).into_response()
+}
+
+/// Fire any matching alert rules for the given tenant + severity.
+async fn fire_alert_rules(
+    state: &Arc<AppState>,
+    tenant_id: &str,
+    severity: &str,
+    subject: &str,
+    body: &str,
+) {
+    let coll = state.mongo_client.database("idps_database")
+        .collection::<alerting::AlertRule>("alert_rules");
+    let Ok(mut cursor) = coll.find(doc! {
+        "tenant_id": tenant_id,
+        "enabled": true,
+    }).await else { return };
+
+    while let Ok(Some(rule)) = cursor.try_next().await {
+        if !alerting::severity_meets_threshold(severity, &rule.min_severity) {
+            continue;
+        }
+        let config = state.alerting_config.clone();
+        let dest = rule.destination.clone();
+        let rule_type = rule.rule_type.clone();
+        let subj = subject.to_string();
+        let msg = body.to_string();
+        let client = state.raspi_client.clone();
+
+        tokio::spawn(async move {
+            match rule_type.as_str() {
+                "email" => {
+                    if config.smtp_configured() {
+                        if let Err(e) = alerting::send_email_alert(&config, &dest, &subj, &msg).await {
+                            tracing::warn!("Email alert failed to {}: {}", dest, e);
+                        }
+                    }
+                }
+                "sms" => {
+                    if config.twilio_configured() {
+                        if let Err(e) = alerting::send_sms_alert(&client, &config, &dest, &msg).await {
+                            tracing::warn!("SMS alert failed to {}: {}", dest, e);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        });
+    }
+}
+
+// ─── Billing Handlers ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct CheckoutRequest {
+    success_url: Option<String>,
+    cancel_url: Option<String>,
+}
+
+async fn billing_checkout(
+    State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
+    Json(req): Json<CheckoutRequest>,
+) -> impl IntoResponse {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    if state.stripe_secret.is_empty() {
+        return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({ "error": "Stripe not configured" }))).into_response();
+    }
+    let success_url = req.success_url.as_deref().unwrap_or("https://idps.brentweb.eu/?payment=success");
+    let cancel_url  = req.cancel_url.as_deref().unwrap_or("https://idps.brentweb.eu/?payment=cancelled");
+    match billing::create_checkout_session(
+        &state.raspi_client,
+        &state.stripe_secret,
+        &tenant_id,
+        &state.stripe_price_id,
+        success_url,
+        cancel_url,
+    ).await {
+        Ok(url) => Json(serde_json::json!({ "success": true, "checkout_url": url })).into_response(),
+        Err(e) => {
+            tracing::warn!("Stripe checkout error: {}", e);
+            (StatusCode::BAD_GATEWAY, Json(serde_json::json!({ "error": "Stripe error" }))).into_response()
+        }
+    }
+}
+
+async fn billing_status(
+    State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
+) -> impl IntoResponse {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    let tenant_coll = state.mongo_client.database("idps_database")
+        .collection::<serde_json::Value>("tenants");
+    let tenant_doc = tenant_coll
+        .find_one(doc! { "tenant_id": &tenant_id })
+        .await
+        .unwrap_or(None);
+
+    if state.stripe_secret.is_empty() {
+        return Json(serde_json::json!({
+            "success": true,
+            "plan": tenant_doc.as_ref().and_then(|d| d["plan"].as_str()).unwrap_or("none"),
+            "active": tenant_doc.as_ref().and_then(|d| d["active"].as_bool()).unwrap_or(false),
+        })).into_response();
+    }
+
+    let customer_id = tenant_doc.as_ref()
+        .and_then(|d| d["stripe_customer_id"].as_str())
+        .unwrap_or("")
+        .to_string();
+
+    if customer_id.is_empty() {
+        return Json(serde_json::json!({ "success": true, "active": false, "plan": "none" })).into_response();
+    }
+
+    match billing::get_subscription_status(&state.raspi_client, &state.stripe_secret, &customer_id).await {
+        Ok(status) => Json(serde_json::json!({
+            "success": true,
+            "active": status.active,
+            "plan": status.plan,
+            "current_period_end": status.current_period_end,
+            "cancel_at_period_end": status.cancel_at_period_end,
+        })).into_response(),
+        Err(e) => {
+            tracing::warn!("billing_status error: {}", e);
+            (StatusCode::BAD_GATEWAY, Json(serde_json::json!({ "error": "Stripe error" }))).into_response()
+        }
+    }
+}
+
+async fn billing_webhook(
+    State(state): State<Arc<AppState>>,
+    req: Request<axum::body::Body>,
+) -> impl IntoResponse {
+    let sig = req.headers()
+        .get("stripe-signature")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+
+    let body = match axum::body::to_bytes(req.into_body(), 1_048_576).await {
+        Ok(b) => b,
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
+
+    if state.stripe_webhook_secret.is_empty() {
+        return StatusCode::OK.into_response();
+    }
+
+    let event = match billing::handle_webhook(&body, &sig, &state.stripe_webhook_secret) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("Stripe webhook verification failed: {}", e);
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+    };
+
+    let coll = state.mongo_client.database("idps_database")
+        .collection::<serde_json::Value>("tenants");
+
+    match event.event_type.as_str() {
+        "checkout.session.completed" => {
+            let client_ref = {
+                let raw: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+                raw["data"]["object"]["client_reference_id"].as_str().unwrap_or("default").to_string()
+            };
+            if let (Some(customer_id), Some(sub_id)) = (&event.customer_id, &event.subscription_id) {
+                let _ = coll.update_one(
+                    doc! { "tenant_id": &client_ref },
+                    doc! { "$set": {
+                        "stripe_customer_id": customer_id,
+                        "stripe_subscription_id": sub_id,
+                        "active": true,
+                    }},
+                ).upsert(true).await;
+            }
+        }
+        "customer.subscription.deleted" => {
+            if let Some(customer_id) = &event.customer_id {
+                let _ = coll.update_one(
+                    doc! { "stripe_customer_id": customer_id },
+                    doc! { "$set": { "active": false } },
+                ).await;
+            }
+        }
+        _ => {}
+    }
+
+    StatusCode::OK.into_response()
+}
+
 // ─── Prometheus Metrics ───────────────────────────────────────────────────────
 
 async fn prometheus_metrics(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    let db = state.mongo_client.database("idps");
+    let db = state.mongo_client.database("idps_database");
 
     let one_hour_ago = BsonDateTime::from_millis(
         (Utc::now() - chrono::Duration::hours(1)).timestamp_millis(),

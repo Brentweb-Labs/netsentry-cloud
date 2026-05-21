@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { IdpsComponent } from './pages/dashboard/idps/idps.component';
 import { SettingsComponent } from './pages/settings/settings.component';
+import { ReportsComponent } from './pages/reports/reports.component';
 import { AppLayoutComponent } from './shared/layout/app-layout/app-layout.component';
 import { SignInComponent } from './pages/auth-pages/sign-in/sign-in.component';
 import { NotFoundComponent } from './pages/other-page/not-found/not-found.component';
@@ -26,6 +27,11 @@ export const routes: Routes = [
         path: 'settings',
         component: SettingsComponent,
         title: 'Detection Settings | IDPS',
+      },
+      {
+        path: 'reports',
+        component: ReportsComponent,
+        title: 'Compliance Reports | IDPS',
       },
     ]
   },

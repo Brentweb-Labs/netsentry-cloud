@@ -380,4 +380,16 @@ export class ApiService {
       reason: 'Disabled via dashboard'
     });
   }
+
+  // Billing
+  getBillingStatus(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/billing/status`);
+  }
+
+  createCheckoutSession(successUrl?: string, cancelUrl?: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/billing/checkout`, {
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    });
+  }
 }

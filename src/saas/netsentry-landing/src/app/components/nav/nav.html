@@ -1,0 +1,80 @@
+<header class="fixed top-0 left-0 right-0 z-40 ns-nav-bg"
+        style="transition: border-color 0.3s cubic-bezier(0.32,0.72,0,1)">
+  <div class="max-w-6xl mx-auto px-6 h-14 flex items-center gap-8">
+
+    <!-- Logo -->
+    <a href="/" class="shrink-0 flex items-center h-7">
+      <img src="/branding/logo.svg" alt="NetSentry" class="h-full w-auto" style="filter: var(--logo-filter)">
+    </a>
+
+    <!-- Desktop nav -->
+    <nav class="hidden md:flex items-center gap-1 flex-1">
+      @for (link of navLinks; track link.label) {
+        <a [href]="link.href"
+           [target]="link.external ? '_blank' : '_self'"
+           class="px-3 py-1.5 text-[13px] font-medium text-base-content/55 hover:text-base-content hover:bg-base-content/6 rounded"
+           style="transition: all 0.25s cubic-bezier(0.32,0.72,0,1)">
+          {{ link.label }}
+        </a>
+      }
+    </nav>
+
+    <!-- Actions -->
+    <div class="hidden md:flex items-center gap-2 ml-auto">
+      <ns-theme-toggle />
+      <a href="#"
+         class="px-3 py-1.5 text-[13px] font-medium text-base-content/55 hover:text-base-content rounded"
+         style="transition: color 0.25s cubic-bezier(0.32,0.72,0,1)">
+        Sign in
+      </a>
+      <div class="w-px h-4 bg-base-content/15 mx-1"></div>
+      <a href="#pricing"
+         class="group btn btn-primary btn-sm gap-2 rounded"
+         style="transition: all 0.3s cubic-bezier(0.32,0.72,0,1)">
+        Request access
+        <span class="w-3.5 h-3.5 rounded-sm bg-primary-content/15 flex items-center justify-center group-hover:translate-x-0.5"
+              style="transition: transform 0.3s cubic-bezier(0.32,0.72,0,1)">
+          <svg width="7" height="7" viewBox="0 0 8 8" fill="none">
+            <path d="M1.5 6.5L6.5 1.5M6.5 1.5H2.5M6.5 1.5V5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </span>
+      </a>
+    </div>
+
+    <!-- Mobile -->
+    <div class="flex md:hidden items-center gap-2 ml-auto">
+      <ns-theme-toggle />
+      <button class="w-8 h-8 flex flex-col items-center justify-center gap-[5px] relative rounded"
+              (click)="toggleMenu()" aria-label="Menu">
+        <span class="w-[18px] h-[1.5px] bg-base-content/60 block absolute"
+              [ngStyle]="{'transform': menuOpen() ? 'rotate(45deg)' : 'translateY(-4px)'}"
+              style="transition: transform 0.35s cubic-bezier(0.32,0.72,0,1)"></span>
+        <span class="w-[18px] h-[1.5px] bg-base-content/60 block absolute"
+              [ngStyle]="{'transform': menuOpen() ? 'rotate(-45deg)' : 'translateY(4px)'}"
+              style="transition: transform 0.35s cubic-bezier(0.32,0.72,0,1)"></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Mobile drawer — only rendered when open to avoid backdrop-filter covering the page -->
+@if (menuOpen()) {
+  <div class="fixed inset-0 z-30" (click)="toggleMenu()">
+    <div class="absolute inset-0 bg-base-100/96" style="backdrop-filter: blur(24px)"></div>
+  </div>
+}
+
+<div class="fixed inset-x-0 top-14 z-30 ns-nav-bg flex flex-col md:hidden overflow-hidden"
+     style="transition: max-height 0.35s cubic-bezier(0.32,0.72,0,1)"
+     [style.max-height]="menuOpen() ? '400px' : '0px'">
+  @for (link of navLinks; let i = $index; track link.label) {
+    <a [href]="link.href"
+       class="px-6 py-4 text-base font-medium text-base-content ns-rule"
+       (click)="toggleMenu()">{{ link.label }}</a>
+  }
+  <div class="px-6 py-4">
+    <a href="#pricing" class="btn btn-primary btn-block rounded" (click)="toggleMenu()">
+      Request access
+    </a>
+  </div>
+</div>

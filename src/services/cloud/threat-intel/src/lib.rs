@@ -126,6 +126,30 @@ impl ThreatIntelStore {
         }
     }
 
+    /// Load blocklist IPs from a string (one IP per line, `#` comments ignored).
+    pub fn load_blocklist_from_str(&mut self, content: &str) -> usize {
+        let before = self.blocked.len();
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() && !trimmed.starts_with('#') {
+                self.blocked.insert(trimmed.to_string());
+            }
+        }
+        self.blocked.len() - before
+    }
+
+    /// Load Tor exit node list from a string.
+    pub fn load_tor_exits_from_str(&mut self, content: &str) -> usize {
+        let before = self.tor_exits.len();
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() && !trimmed.starts_with('#') {
+                self.tor_exits.insert(trimmed.to_string());
+            }
+        }
+        self.tor_exits.len() - before
+    }
+
     pub fn blocked_count(&self) -> usize {
         self.blocked.len()
     }

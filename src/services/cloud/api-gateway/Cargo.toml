@@ -29,6 +29,13 @@ rand = { workspace = true }
 dashmap = { workspace = true }
 regex = { workspace = true }
 
+# Billing / alerting / reporting
+hmac = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+lettre = { workspace = true }
+printpdf = { workspace = true }
+
 # Shared libraries
 idps-types = { path = "../../../shared/types" }
 idps-protocols = { path = "../../../shared/protocols" }

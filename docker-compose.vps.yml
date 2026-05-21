@@ -1,0 +1,216 @@
+services:
+  mongodb:
+    image: mongodb/mongodb-community-server:8.0-ubi9
+    container_name: idps-mongodb-vps
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-SecurePassword123!}
+      MONGO_INITDB_DATABASE: idps_database
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - idps-net
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: idps-redis-vps
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-RedisSecure123!} --maxmemory 1gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - idps-net
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-RedisSecure123!}", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: idps-elasticsearch-vps
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ./data/elasticsearch:/usr/share/elasticsearch/data
+    networks:
+      - idps-net
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: src/services/cloud/api-gateway/Dockerfile
+    container_name: idps-api-gateway-vps
+    restart: unless-stopped
+    environment:
+      - GATEWAY_MODE=vps
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb:27017/idps_database?authSource=admin
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-RedisSecure123!}@redis:6379
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - LOG_LEVEL=info
+      - RASPI_ENDPOINT=${RASPI_ENDPOINT:-http://10.10.0.2:8080}
+    ports:
+      - "10.10.0.1:8080:8080"
+    networks:
+      - idps-net
+      - proxy
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.idps-api.rule=Host(`idps.brentweb.eu`) && (PathPrefix(`/api/vps`) || PathPrefix(`/api/prevention`) || PathPrefix(`/ws`))"
+      - "traefik.http.routers.idps-api.entrypoints=websecure"
+      - "traefik.http.routers.idps-api.tls=true"
+      - "traefik.http.routers.idps-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.idps-api.priority=20"
+      - "traefik.http.routers.idps-api.middlewares=idps-strip-vps@docker"
+      - "traefik.http.middlewares.idps-strip-vps.replacepathregex.regex=^/api/vps(.*)"
+      - "traefik.http.middlewares.idps-strip-vps.replacepathregex.replacement=/api$$1"
+      - "traefik.http.services.idps-api.loadbalancer.server.port=8080"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  threat-intel:
+    build:
+      context: .
+      dockerfile: src/services/cloud/threat-intel/Dockerfile
+    container_name: idps-threat-intel-vps
+    restart: unless-stopped
+    environment:
+      - SERVICE_MODE=vps
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb:27017/idps_database?authSource=admin
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-RedisSecure123!}@redis:6379
+      - LOG_LEVEL=info
+      - UPDATE_INTERVAL=3600
+    networks:
+      - idps-net
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  packet-analyzer:
+    build:
+      context: .
+      dockerfile: src/services/cloud/packet-analyzer/Dockerfile
+    container_name: idps-packet-analyzer-vps
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      - ANALYZER_MODE=vps
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@localhost:27017/idps_database?authSource=admin
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-RedisSecure123!}@localhost:6379
+      - LOG_LEVEL=info
+    volumes:
+      - ./data/logs/suricata:/var/log/suricata:ro
+      - ./logs/packet-analyzer:/var/log/idps/packet-analyzer
+    depends_on:
+      - mongodb
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  vps-dashboard:
+    build:
+      context: .
+      dockerfile: src/tools/dashboard/Dockerfile
+    container_name: idps-vps-dashboard
+    restart: unless-stopped
+    networks:
+      - idps-net
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.idps-dashboard.rule=Host(`idps.brentweb.eu`)"
+      - "traefik.http.routers.idps-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.idps-dashboard.tls=true"
+      - "traefik.http.routers.idps-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.idps-dashboard.priority=10"
+      - "traefik.http.routers.idps-dashboard.middlewares=idps-dashboard-ipallowlist"
+      - "traefik.http.middlewares.idps-dashboard-ipallowlist.ipallowlist.sourcerange=109.133.17.150/32"
+      - "traefik.http.services.idps-dashboard.loadbalancer.server.port=80"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  idps-net:
+    name: idps-net
+    driver: bridge
+  proxy:
+    external: true

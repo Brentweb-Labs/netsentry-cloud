@@ -1,0 +1,35 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # IDPS API Gateway — exposes /metrics in Prometheus text format
+  - job_name: 'idps-api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Packet Analyzer (VPS) — host network, localhost
+  - job_name: 'idps-packet-analyzer'
+    static_configs:
+      - targets: ['localhost:8090']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # MongoDB Exporter (VPS)
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+    scrape_interval: 30s
+
+  # Node Exporter — Raspberry Pi (reachable over WireGuard tunnel)
+  - job_name: 'pi-node-exporter'
+    static_configs:
+      - targets: ['10.10.0.2:9100']
+    scrape_interval: 30s

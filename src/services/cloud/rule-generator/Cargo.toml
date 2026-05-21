@@ -1,0 +1,23 @@
+[package]
+name = "idps-rule-generator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+anyhow = { workspace = true }
+regex = { workspace = true }
+mongodb = { workspace = true }
+chrono = { workspace = true }
+
+# Rule generator specific dependencies
+tera = "1.19"
+
+# Shared libraries
+idps-types = { path = "../../../shared/types" }
+idps-protocols = { path = "../../../shared/protocols" }
+idps-utils = { path = "../../../shared/utils" }

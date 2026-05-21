@@ -1,0 +1,256 @@
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Detection Settings</h1>
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+      Configure anomaly detection thresholds, brute force detection, and IPv4 blocking behaviour.
+    </p>
+  </div>
+
+  <!-- Loading state -->
+  <div *ngIf="loading" class="flex items-center justify-center py-20">
+    <svg class="animate-spin h-8 w-8 text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+  </div>
+
+  <form *ngIf="!loading" (ngSubmit)="saveSettings()" class="space-y-6 max-w-3xl">
+
+    <!-- Save feedback -->
+    <div *ngIf="saveSuccess"
+         class="rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 p-4 text-sm text-green-700 dark:text-green-400">
+      ✓ Settings saved successfully.
+    </div>
+    <div *ngIf="saveError"
+         class="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 p-4 text-sm text-red-700 dark:text-red-400">
+      {{ saveError }}
+    </div>
+
+    <!-- ── Brute Force Detection ─────────────────────────────────── -->
+    <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        </svg>
+        Brute Force Detection
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Threshold -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Request Threshold
+          </label>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Number of requests to a monitored path before blocking the source IP.
+          </p>
+          <input
+            type="number"
+            [(ngModel)]="settings.brute_force_threshold"
+            name="brute_force_threshold"
+            min="1"
+            max="10000"
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700
+                   text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+          />
+          <p class="mt-1 text-xs text-gray-400">Current: {{ settings.brute_force_threshold }} requests</p>
+        </div>
+
+        <!-- Window -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Detection Window (seconds)
+          </label>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Sliding time window in which requests are counted.
+          </p>
+          <input
+            type="number"
+            [(ngModel)]="settings.brute_force_window_seconds"
+            name="brute_force_window_seconds"
+            min="5"
+            max="86400"
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700
+                   text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+          />
+          <p class="mt-1 text-xs text-gray-400">Current: {{ windowLabel }}</p>
+        </div>
+
+        <!-- Block Duration -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Block Duration (hours)
+          </label>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            How long to block the source IPv4 address after detection.
+          </p>
+          <input
+            type="number"
+            [(ngModel)]="settings.block_duration_hours"
+            name="block_duration_hours"
+            min="0"
+            max="8760"
+            step="1"
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700
+                   text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+          />
+          <p class="mt-1 text-xs text-gray-400">Current: {{ blockDurationLabel }}</p>
+        </div>
+      </div>
+
+      <!-- Summary badge -->
+      <div class="mt-4 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+        An IP will be blocked for <strong>{{ blockDurationLabel }}</strong> if it makes more than
+        <strong>{{ settings.brute_force_threshold }}</strong> requests within a
+        <strong>{{ windowLabel }}</strong> window on a monitored path.
+      </div>
+    </div>
+
+    <!-- ── Monitored Paths ───────────────────────────────────────── -->
+    <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+        </svg>
+        Monitored Paths
+      </h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        URL paths (login pages, admin panels, etc.) that will be monitored for brute force attempts.
+      </p>
+
+      <div class="flex flex-wrap gap-2 mb-4">
+        <span
+          *ngFor="let path of settings.monitored_paths"
+          class="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 text-xs font-medium px-3 py-1"
+        >
+          {{ path }}
+          <button
+            type="button"
+            (click)="removePath(path)"
+            class="ml-1 text-blue-500 hover:text-red-500 focus:outline-none"
+            title="Remove path"
+          >
+            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </span>
+        <span *ngIf="settings.monitored_paths.length === 0" class="text-sm text-gray-400 italic">
+          No paths configured — all paths will be ignored.
+        </span>
+      </div>
+
+      <div class="flex gap-2">
+        <input
+          type="text"
+          [(ngModel)]="newPath"
+          name="newPath"
+          (keydown)="onPathKeydown($event)"
+          placeholder="/login"
+          class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700
+                 text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+        />
+        <button
+          type="button"
+          (click)="addPath()"
+          class="rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium px-4 py-2 transition-colors"
+        >
+          Add Path
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Feature Toggles ──────────────────────────────────────── -->
+    <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Feature Toggles
+      </h2>
+
+      <div class="space-y-4">
+        <!-- Auto-block -->
+        <div class="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">Auto-block on detection</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Automatically block the source IPv4 when a brute force pattern is detected. Disable to only alert.
+            </p>
+          </div>
+          <button
+            type="button"
+            (click)="settings.auto_block_enabled = !settings.auto_block_enabled"
+            [class.bg-brand-500]="settings.auto_block_enabled"
+            [class.bg-gray-300]="!settings.auto_block_enabled"
+            [class.dark:bg-gray-600]="!settings.auto_block_enabled"
+            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent
+                   transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500"
+            role="switch"
+            [attr.aria-checked]="settings.auto_block_enabled"
+          >
+            <span
+              [class.translate-x-5]="settings.auto_block_enabled"
+              [class.translate-x-0]="!settings.auto_block_enabled"
+              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0
+                     transition duration-200 ease-in-out"
+            ></span>
+          </button>
+        </div>
+
+        <!-- DNS enrichment -->
+        <div class="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">DNS enrichment</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Perform reverse DNS lookups when blocking an IP and link Suricata DNS events to blocked addresses.
+            </p>
+          </div>
+          <button
+            type="button"
+            (click)="settings.dns_enrichment_enabled = !settings.dns_enrichment_enabled"
+            [class.bg-brand-500]="settings.dns_enrichment_enabled"
+            [class.bg-gray-300]="!settings.dns_enrichment_enabled"
+            [class.dark:bg-gray-600]="!settings.dns_enrichment_enabled"
+            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent
+                   transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500"
+            role="switch"
+            [attr.aria-checked]="settings.dns_enrichment_enabled"
+          >
+            <span
+              [class.translate-x-5]="settings.dns_enrichment_enabled"
+              [class.translate-x-0]="!settings.dns_enrichment_enabled"
+              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0
+                     transition duration-200 ease-in-out"
+            ></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Last updated & Save -->
+    <div class="flex items-center justify-between">
+      <p *ngIf="settings.updated_at" class="text-xs text-gray-400 dark:text-gray-500">
+        Last saved: {{ settings.updated_at | date:'medium' }}
+      </p>
+      <button
+        type="submit"
+        [disabled]="saving"
+        class="ml-auto flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-600 disabled:opacity-60
+               text-white font-medium text-sm px-6 py-2.5 transition-colors focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+      >
+        <svg *ngIf="saving" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        {{ saving ? 'Saving…' : 'Save Settings' }}
+      </button>
+    </div>
+
+  </form>
+</div>

@@ -1,0 +1,25 @@
+[package]
+name = "idps-threat-intel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+regex = { workspace = true }
+env_logger = { workspace = true }
+
+# Threat intelligence specific dependencies
+maxminddb = { workspace = true }
+ipnetwork = { workspace = true }
+hickory-resolver = { workspace = true }
+
+# Shared libraries
+idps-types = { path = "../../../shared/types" }
+idps-protocols = { path = "../../../shared/protocols" }
+idps-utils = { path = "../../../shared/utils" }

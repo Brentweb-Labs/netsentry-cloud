@@ -1,0 +1,149 @@
+/* IDPS Dashboard Component Styles */
+@reference "../../../../styles.css";
+
+.status-indicator {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.status-indicator.connected {
+  @apply bg-green-500;
+}
+
+.status-indicator.disconnected {
+  @apply bg-red-500;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+.metric-card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4 transition-all duration-200 hover:shadow-md;
+}
+
+.metric-card:hover {
+  @apply transform scale-105;
+}
+
+.alert-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.alert-badge.critical {
+  @apply bg-red-100 text-red-800;
+}
+
+.alert-badge.high {
+  @apply bg-orange-100 text-orange-800;
+}
+
+.alert-badge.medium {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.alert-badge.low {
+  @apply bg-blue-100 text-blue-800;
+}
+
+.threat-level-badge {
+  @apply inline-flex items-center px-2 py-1 rounded text-xs font-medium;
+}
+
+.packet-analysis-item {
+  @apply border-l-4 pl-4 py-2 transition-all duration-200;
+}
+
+.packet-analysis-item.block {
+  @apply border-red-500 bg-red-50;
+}
+
+.packet-analysis-item.monitor {
+  @apply border-yellow-500 bg-yellow-50;
+}
+
+.packet-analysis-item.allow {
+  @apply border-green-500 bg-green-50;
+}
+
+.event-row {
+  @apply transition-colors duration-150 hover:bg-gray-50;
+}
+
+.event-row.alert {
+  @apply bg-red-50 border-l-4 border-red-500;
+}
+
+.event-row.dns {
+  @apply bg-blue-50 border-l-4 border-blue-500;
+}
+
+.event-row.http {
+  @apply bg-green-50 border-l-4 border-green-500;
+}
+
+.progress-bar {
+  @apply w-full bg-gray-200 rounded-full h-2;
+}
+
+.progress-bar.filled {
+  @apply bg-blue-600 h-2 rounded-full transition-all duration-300;
+}
+
+.loading-spinner {
+  @apply animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600;
+}
+
+.connection-status {
+  @apply flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.connection-status.connected {
+  @apply bg-green-100 text-green-800;
+}
+
+.connection-status.disconnected {
+  @apply bg-red-100 text-red-800;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .metric-card {
+    @apply p-3;
+  }
+  
+  .metric-card h3 {
+    @apply text-sm;
+  }
+  
+  .metric-card p {
+    @apply text-lg;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .metric-card {
+    @apply bg-gray-800 border-gray-700;
+  }
+  
+  .event-row:hover {
+    @apply bg-gray-700;
+  }
+  
+  .packet-analysis-item.block {
+    @apply bg-red-900;
+  }
+  
+  .packet-analysis-item.monitor {
+    @apply bg-yellow-900;
+  }
+  
+  .packet-analysis-item.allow {
+    @apply bg-green-900;
+  }
+}

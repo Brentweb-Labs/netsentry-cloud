@@ -1,0 +1,31 @@
+[package]
+name = "idps-log-processor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+mongodb = { workspace = true }
+redis = { workspace = true }
+tracing-subscriber = { workspace = true }
+regex = { workspace = true }
+futures-util = { workspace = true }
+
+# File watching
+notify = "6.1"
+
+# HTTP client
+reqwest = { workspace = true }
+
+# Shared libraries
+idps-types = { path = "../../../shared/types" }
+idps-protocols = { path = "../../../shared/protocols" }
+idps-utils = { path = "../../../shared/utils" }
+idps-config = { path = "../../../shared/config" }

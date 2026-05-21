@@ -1,0 +1,37 @@
+[package]
+name = "idps-api-gateway"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+mongodb = { workspace = true }
+redis = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+futures-util = { workspace = true }
+
+# API gateway specific dependencies
+axum = { workspace = true, features = ["ws"] }
+tower = { workspace = true }
+tower-http = { workspace = true, features = ["cors", "trace"] }
+reqwest = { workspace = true }
+jsonwebtoken = { workspace = true }
+bcrypt = { workspace = true }
+rand = { workspace = true }
+dashmap = { workspace = true }
+regex = { workspace = true }
+
+# Shared libraries
+idps-types = { path = "../../../shared/types" }
+idps-protocols = { path = "../../../shared/protocols" }
+idps-utils = { path = "../../../shared/utils" }
+idps-config = { path = "../../../shared/config" }
+idps-rule-generator = { path = "../../cloud/rule-generator" }

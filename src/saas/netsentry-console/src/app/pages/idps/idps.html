@@ -1,0 +1,441 @@
+<!-- IDPS Dashboard Page -->
+<div class="p-6 space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+        <svg class="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-xl font-semibold">IDPS Dashboard</h1>
+        <p class="text-sm text-base-content/60">Intrusion Detection & Prevention System</p>
+      </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border"
+           [class]="connectionStatus()?.status === 'connected'
+             ? 'bg-success/10 border-success/20 text-success'
+             : connectionStatus()?.status === 'degraded'
+             ? 'bg-warning/10 border-warning/20 text-warning'
+             : 'bg-error/10 border-error/20 text-error'">
+        <span class="w-2 h-2 rounded-full"
+              [class]="connectionStatus()?.status === 'connected' ? 'bg-success animate-pulse'
+                : connectionStatus()?.status === 'degraded' ? 'bg-warning'
+                : 'bg-error'"></span>
+        Sensor {{ connectionStatus()?.status || 'unknown' }}
+      </div>
+
+      <button (click)="refreshData()" class="btn btn-ghost btn-sm gap-2">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div role="tablist" class="tabs tabs-bordered">
+    @for (tab of tabs; track tab) {
+      <button role="tab" class="tab" [class.tab-active]="activeTab === tab" (click)="onTabChange(tab)">
+        {{ tab | titlecase }}
+      </button>
+    }
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  @if (activeTab === 'overview') {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Alert Stats -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body p-4">
+          <h3 class="text-sm text-base-content/60">Total Alerts</h3>
+          <p class="text-2xl font-bold">{{ alertStats()?.total || 0 }}</p>
+          <div class="flex gap-2 mt-2">
+            <span class="badge badge-error badge-sm">{{ alertStats()?.critical || 0 }} critical</span>
+            <span class="badge badge-warning badge-sm">{{ alertStats()?.high || 0 }} high</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Metrics -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body p-4">
+          <h3 class="text-sm text-base-content/60">CPU Usage</h3>
+          <p class="text-2xl font-bold">{{ systemMetrics()?.cpu_current || 0 }}%</p>
+          <progress class="progress progress-primary w-full" [value]="systemMetrics()?.cpu_current || 0" max="100"></progress>
+        </div>
+      </div>
+
+      <!-- Memory -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body p-4">
+          <h3 class="text-sm text-base-content/60">Memory Usage</h3>
+          <p class="text-2xl font-bold">{{ systemMetrics()?.memory_current || 0 }}%</p>
+          <progress class="progress progress-secondary w-full" [value]="systemMetrics()?.memory_current || 0" max="100"></progress>
+        </div>
+      </div>
+
+      <!-- Network -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body p-4">
+          <h3 class="text-sm text-base-content/60">Network Throughput</h3>
+          <p class="text-2xl font-bold">{{ systemMetrics()?.network_throughput_current || 0 }} Mbps</p>
+          <p class="text-xs text-base-content/50">{{ systemMetrics()?.network_trend || 'N/A' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- More Overview Cards -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Suricata Status -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Suricata Status</h3>
+          @if (loading().status) {
+            <span class="loading loading-spinner loading-sm"></span>
+          } @else {
+            <div class="flex items-center gap-3">
+              <span class="w-3 h-3 rounded-full"
+                    [class]="suricataStatus()?.running ? 'bg-success animate-pulse' : 'bg-error'"></span>
+              <span class="font-medium">{{ suricataStatus()?.running ? 'Running' : 'Stopped' }}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4 text-sm">
+              <div><span class="text-base-content/60">CPU:</span> {{ suricataStatus()?.stats?.cpu_usage || 0 }}%</div>
+              <div><span class="text-base-content/60">Memory:</span> {{ suricataStatus()?.stats?.memory_usage || 0 }}%</div>
+              <div><span class="text-base-content/60">Events:</span> {{ suricataStatus()?.stats?.events_processed || 0 }}</div>
+              <div><span class="text-base-content/60">Throughput:</span> {{ suricataStatus()?.stats?.network_throughput || 0 }} Mbps</div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Threat Intel -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Threat Intelligence</h3>
+          @if (loading().threat) {
+            <span class="loading loading-spinner loading-sm"></span>
+          } @else {
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div><span class="text-base-content/60">Malicious IPs:</span> {{ threatIntel()?.malicious_ips?.length || 0 }}</div>
+              <div><span class="text-base-content/60">Suspicious Domains:</span> {{ threatIntel()?.suspicious_domains?.length || 0 }}</div>
+              <div><span class="text-base-content/60">Total Alerts:</span> {{ threatIntel()?.total_alerts || 0 }}</div>
+              <div><span class="text-base-content/60">Unique IPs:</span> {{ threatIntel()?.unique_ips_count || 0 }}</div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- EVENTS TAB -->
+  @if (activeTab === 'events') {
+    <div class="space-y-4">
+      <!-- Filters -->
+      <div class="flex flex-wrap gap-4">
+        <input type="text" placeholder="Search events..." class="input input-bordered input-sm w-64"
+               [ngModel]="eventSearch()" (ngModelChange)="eventSearch.set($event)" (keyup.enter)="loadEvents()">
+        <select class="select select-bordered select-sm"
+                [ngModel]="eventTypeFilter()" (ngModelChange)="eventTypeFilter.set($event); loadEvents()">
+          <option value="">All Types</option>
+          <option value="alert">Alerts</option>
+          <option value="http">HTTP</option>
+          <option value="dns">DNS</option>
+          <option value="tls">TLS</option>
+          <option value="flow">Flow</option>
+        </select>
+        <button class="btn btn-sm btn-primary" (click)="loadEvents()">Search</button>
+      </div>
+
+      <!-- Events Table -->
+      <div class="card bg-base-100 border border-base-300 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Protocol</th>
+                <th>Alert</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (event of events(); track $index) {
+                <tr class="hover">
+                  <td class="text-xs">{{ event.timestamp | date:'short' }}</td>
+                  <td><span class="badge badge-sm">{{ event.event_type }}</span></td>
+                  <td class="font-mono text-xs">{{ event.src_ip }}:{{ event.src_port }}</td>
+                  <td class="font-mono text-xs">{{ event.dest_ip }}:{{ event.dest_port }}</td>
+                  <td>{{ event.proto }}</td>
+                  <td>
+                    @if (event.alert) {
+                      <span class="text-xs text-error">{{ event.alert.signature }}</span>
+                    }
+                  </td>
+                </tr>
+              }
+              @empty {
+                <tr>
+                  <td colspan="6" class="text-center py-8 text-base-content/50">
+                    {{ loading().events ? 'Loading...' : 'No events found' }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex justify-center gap-2">
+        <button class="btn btn-sm" (click)="loadEvents(eventPage() - 1)" [disabled]="eventPage() === 1">Previous</button>
+        <span class="btn btn-sm btn-ghost">Page {{ eventPage() }}</span>
+        <button class="btn btn-sm" (click)="loadEvents(eventPage() + 1)">Next</button>
+      </div>
+    </div>
+  }
+
+  <!-- PREVENTION TAB -->
+  @if (activeTab === 'prevention') {
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Block Form -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Block IP Address</h3>
+          <div class="form-control">
+            <label class="label"><span class="label-text">IP Address</span></label>
+            <input type="text" placeholder="e.g., 192.168.1.100" class="input input-bordered"
+                   [(ngModel)]="blockForm.ip">
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">Reason</span></label>
+            <input type="text" placeholder="e.g., Brute force attack" class="input input-bordered"
+                   [(ngModel)]="blockForm.reason">
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">Duration (hours)</span></label>
+            <input type="number" class="input input-bordered" [(ngModel)]="blockForm.durationHours">
+          </div>
+          <button class="btn btn-error mt-4" [disabled]="blockLoading || !blockForm.ip"
+                  (click)="blockIp()">
+            @if (blockLoading) {
+              <span class="loading loading-spinner loading-sm"></span>
+            }
+            Block IP
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Prevention Statistics</h3>
+          <div class="space-y-4">
+            <div class="flex justify-between">
+              <span class="text-base-content/60">Total Blocked</span>
+              <span class="font-bold">{{ preventionStats()?.total_blocked || 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-base-content/60">Active Blocks</span>
+              <span class="font-bold text-warning">{{ preventionStats()?.active_blocks || 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-base-content/60">Auto Blocks</span>
+              <span class="font-bold">{{ preventionStats()?.auto_blocks || 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-base-content/60">Manual Blocks</span>
+              <span class="font-bold">{{ preventionStats()?.manual_blocks || 0 }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blocked IPs List -->
+      <div class="card bg-base-100 border border-base-300 lg:col-span-1">
+        <div class="card-body p-0">
+          <div class="p-4 border-b border-base-300">
+            <h3 class="card-title text-sm">Blocked IPs</h3>
+          </div>
+          <div class="max-h-96 overflow-y-auto">
+            @for (ip of blockedIps(); track ip.ip) {
+              <div class="flex items-center justify-between p-3 border-b border-base-200 last:border-0">
+                <div>
+                  <p class="font-mono text-sm font-medium">{{ ip.ip }}</p>
+                  <p class="text-xs text-base-content/50">{{ ip.reason }}</p>
+                  <p class="text-xs text-base-content/40">Blocked: {{ ip.blocked_at | date:'short' }}</p>
+                </div>
+                <button class="btn btn-xs btn-ghost"
+                        [class.loading]="unblockLoading.has(ip.ip)"
+                        (click)="unblockIp(ip.ip)">
+                  Unblock
+                </button>
+              </div>
+            }
+            @empty {
+              <div class="p-4 text-center text-base-content/50">
+                No blocked IPs
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- SETTINGS TAB -->
+  @if (activeTab === 'settings') {
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Detection Settings -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Detection Settings</h3>
+          <div class="space-y-4">
+            <div class="form-control">
+              <label class="label"><span class="label-text">Brute Force Threshold</span></label>
+              <input type="number" class="input input-bordered"
+                     [ngModel]="settingsForm.brute_force_threshold" (ngModelChange)="settingsForm = {...settingsForm, brute_force_threshold: $event}">
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Brute Force Window (seconds)</span></label>
+              <input type="number" class="input input-bordered"
+                     [ngModel]="settingsForm.brute_force_window_seconds" (ngModelChange)="settingsForm = {...settingsForm, brute_force_window_seconds: $event}">
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Block Duration (hours)</span></label>
+              <input type="number" class="input input-bordered"
+                     [ngModel]="settingsForm.block_duration_hours" (ngModelChange)="settingsForm = {...settingsForm, block_duration_hours: $event}">
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Minimum Alert Level</span></label>
+              <input type="number" class="input input-bordered"
+                     [ngModel]="settingsForm.min_alert_level" (ngModelChange)="settingsForm = {...settingsForm, min_alert_level: $event}">
+            </div>
+            <button class="btn btn-primary" [class.loading]="settingsSaving" (click)="saveDetectionSettings()">
+              Save Settings
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auto Block Toggle -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Auto-Blocking</h3>
+          <div class="form-control">
+            <label class="label cursor-pointer">
+              <span class="label-text">Enable Auto-Block</span>
+              <input type="checkbox" class="toggle toggle-error"
+                     [checked]="autoBlockSettings()?.enabled" (change)="toggleAutoBlock()" />
+            </label>
+          </div>
+          <p class="text-sm text-base-content/60 mt-4">
+            When enabled, detected threats will be automatically blocked based on the configured thresholds.
+          </p>
+        </div>
+      </div>
+
+      <!-- Monitored Paths -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Monitored Paths</h3>
+          <div class="flex gap-2 mb-4">
+            <input type="text" placeholder="Add path..." class="input input-bordered input-sm flex-1"
+                   [(ngModel)]="newMonitoredPath" (keyup.enter)="addMonitoredPath()">
+            <button class="btn btn-sm btn-primary" (click)="addMonitoredPath()">Add</button>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            @for (path of settingsForm.monitored_paths || []; track path) {
+              <span class="badge badge-lg gap-1">
+                {{ path }}
+                <button (click)="removeMonitoredPath(path)" class="hover:text-error">×</button>
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Whitelist -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Whitelist (Never Block)</h3>
+          <div class="flex gap-2 mb-4">
+            <input type="text" placeholder="Add IP or CIDR..." class="input input-bordered input-sm flex-1"
+                   [(ngModel)]="newWhitelistEntry" (keyup.enter)="addWhitelistEntry()">
+            <button class="btn btn-sm btn-primary" (click)="addWhitelistEntry()">Add</button>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            @for (entry of settingsForm.whitelist || []; track entry) {
+              <span class="badge badge-lg badge-success gap-1">
+                {{ entry }}
+                <button (click)="removeWhitelistEntry(entry)" class="hover:text-error">×</button>
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- DEBUG TAB -->
+  @if (activeTab === 'debug') {
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Edge Debug -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="card-title text-sm">Edge Device Debug</h3>
+            <button class="btn btn-xs btn-ghost" (click)="refreshRules()">Refresh Rules</button>
+          </div>
+          @if (loading().debug) {
+            <span class="loading loading-spinner loading-sm"></span>
+          } @else if (edgeDebug()) {
+            <pre class="text-xs bg-base-200 p-4 rounded-lg overflow-x-auto">{{ edgeDebug() | json }}</pre>
+          } @else {
+            <p class="text-base-content/50">No debug data available</p>
+          }
+        </div>
+      </div>
+
+      <!-- Raspi Debug -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Raspi Connection Debug</h3>
+          @if (raspiDebug()) {
+            <pre class="text-xs bg-base-200 p-4 rounded-lg overflow-x-auto">{{ raspiDebug() | json }}</pre>
+          } @else {
+            <p class="text-base-content/50">No debug data available</p>
+          }
+        </div>
+      </div>
+
+      <!-- Connection Status Details -->
+      <div class="card bg-base-100 border border-base-300 lg:col-span-2">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Connection Status Details</h3>
+          @if (connectionStatus()) {
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div><span class="text-base-content/60">Status:</span> {{ connectionStatus()?.status }}</div>
+              <div><span class="text-base-content/60">Uptime %:</span> {{ connectionStatus()?.uptime_percentage?.toFixed(1) }}%</div>
+              <div><span class="text-base-content/60">Avg Response:</span> {{ connectionStatus()?.average_response_time?.toFixed(0) }}ms</div>
+              <div><span class="text-base-content/60">Total Checks:</span> {{ connectionStatus()?.total_checks }}</div>
+              <div><span class="text-base-content/60">Successful:</span> {{ connectionStatus()?.successful_checks }}</div>
+              <div><span class="text-base-content/60">Failed:</span> {{ connectionStatus()?.failed_checks }}</div>
+              <div><span class="text-base-content/60">Last Connected:</span> {{ connectionStatus()?.last_connected | date:'short' }}</div>
+              <div><span class="text-base-content/60">Consecutive Failures:</span> {{ connectionStatus()?.consecutive_failures }}</div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

@@ -1,0 +1,101 @@
+<!-- Breadcrumb -->
+<div class="text-sm breadcrumbs mb-4">
+  <ul>
+    <li><a routerLink="/sites">Sites</a></li>
+    <li>{{ site()?.name ?? '…' }}</li>
+  </ul>
+</div>
+
+@if (loading()) {
+  <div class="animate-pulse space-y-3">
+    <div class="h-6 bg-base-300 rounded w-48"></div>
+    <div class="h-4 bg-base-300 rounded w-32"></div>
+  </div>
+} @else if (site(); as s) {
+  <!-- Header -->
+  <div class="flex items-start justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <h1 class="text-xl font-bold">{{ s.name }}</h1>
+      <app-status-badge [status]="s.status" />
+    </div>
+    <a href="/idps" target="_blank" class="btn btn-ghost btn-sm gap-1">
+      Open IDPS
+      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- Tabs -->
+  <div role="tablist" class="tabs tabs-bordered mb-6">
+    @for (t of tabs; track t.key) {
+      <button role="tab" class="tab" [class.tab-active]="tab() === t.key" (click)="tab.set(t.key)">
+        {{ t.label }}
+      </button>
+    }
+  </div>
+
+  <!-- Overview -->
+  @if (tab() === 'overview') {
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <app-stat-card title="Active Sensors" [value]="s.active_sensors" figure="📡" />
+      <app-stat-card title="Total Sensors"  [value]="s.sensor_count"   figure="🔌" />
+      <app-stat-card title="Alerts (24h)"   [value]="s.alerts_last_24h" figure="🚨" />
+      <app-stat-card title="Location"       [value]="s.location"        figure="📍" />
+    </div>
+    <div class="card bg-base-100 border border-base-300">
+      <div class="card-body">
+        <h3 class="card-title text-sm">Site details</h3>
+        <dl class="space-y-2 text-sm mt-2">
+          <div class="flex justify-between"><dt class="text-base-content/60">Tenant</dt><dd class="font-mono text-xs">{{ s.tenant_id }}</dd></div>
+          <div class="flex justify-between"><dt class="text-base-content/60">Created</dt><dd>{{ s.created_at | date:'mediumDate' }}</dd></div>
+          <div class="flex justify-between"><dt class="text-base-content/60">Updated</dt><dd>{{ s.updated_at | date:'medium' }}</dd></div>
+        </dl>
+      </div>
+    </div>
+  }
+
+  <!-- Sensors -->
+  @if (tab() === 'sensors') {
+    <div class="card bg-base-100 border border-base-300 overflow-hidden">
+      <div class="card-body pb-0">
+        <div class="flex justify-between items-center">
+          <h3 class="card-title text-sm">Sensors</h3>
+          <span class="badge badge-ghost">{{ sensors().length }}</span>
+        </div>
+      </div>
+      @if (sensors().length === 0) {
+        <div class="p-8 text-center text-sm text-base-content/50">No sensors deployed at this site yet.</div>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead><tr>
+              <th>Hostname</th><th>IP</th><th>WireGuard</th><th>Uptime</th><th>Last seen</th><th>Firmware</th>
+            </tr></thead>
+            <tbody>
+              @for (sen of sensors(); track sen.id) {
+                <tr class="hover">
+                  <td class="font-mono text-xs">{{ sen.hostname }}</td>
+                  <td class="font-mono text-xs">{{ sen.ip_address }}</td>
+                  <td><app-status-badge [status]="sen.wireguard_status" /></td>
+                  <td>{{ sen.uptime_percentage }}%</td>
+                  <td class="text-xs text-base-content/60">{{ sen.last_seen | date:'short' }}</td>
+                  <td class="font-mono text-xs text-base-content/60">{{ sen.firmware_version }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Alerts / Config placeholders -->
+  @if (tab() === 'alerts' || tab() === 'config') {
+    <div class="card bg-base-100 border border-base-300">
+      <div class="card-body items-center justify-center h-48 text-sm text-base-content/50">
+        {{ tab() === 'alerts' ? 'Alert feed scoped to this site — coming soon.' : 'Site-level config overrides — coming soon.' }}
+      </div>
+    </div>
+  }
+}

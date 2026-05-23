@@ -1,28 +1,28 @@
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes: nord --default, business --prefersdark;
+  themes: corporate --default, night --prefersdark;
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Override DaisyUI theme tokens — tighter radius, logo-matched
-   primary colour (#3490de ≈ oklch 60% 0.148 244)
+   Override DaisyUI theme tokens — NetSentry brand blue (#465fff)
    ───────────────────────────────────────────────────────────── */
-[data-theme="nord"] {
+[data-theme="corporate"] {
   --logo-filter: none;
-  --color-primary:         oklch(60% 0.148 244);
-  --color-primary-content: oklch(98% 0.008 244);
+  --color-primary:         oklch(52% 0.22 264);   /* #465fff */
+  --color-primary-content: oklch(98% 0.01 264);
   --radius-selector: 0.25rem;
-  --radius-field:    0.25rem;
-  --radius-box:      0.375rem;
+  --radius-field:    0.375rem;
+  --radius-box:      0.5rem;
+  --font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
-[data-theme="business"] {
+[data-theme="night"] {
   --logo-filter: brightness(0) invert(1) opacity(0.85);
-  --color-primary:         oklch(60% 0.148 244);
-  --color-primary-content: oklch(98% 0.008 244);
+  --color-primary:         oklch(52% 0.22 264);
+  --color-primary-content: oklch(98% 0.01 264);
   --radius-selector: 0.25rem;
-  --radius-field:    0.25rem;
-  --radius-box:      0.375rem;
+  --radius-field:    0.375rem;
+  --radius-box:      0.5rem;
 }
 
 /* ─────────────────────────────────────────────────────────────

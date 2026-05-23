@@ -1,149 +1,111 @@
-/* IDPS Dashboard Component Styles */
 @reference "../../../../styles.css";
 
-.status-indicator {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+/* ─── Tab Content Animation ─────────────────────────────────── */
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tab-content {
+  animation: tabFadeIn 0.18s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-.status-indicator.connected {
-  @apply bg-green-500;
+/* ─── Toast Entrance ─────────────────────────────────────────── */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast-enter {
+  animation: toastIn 0.22s cubic-bezier(0.34, 1.3, 0.64, 1) both;
 }
 
-.status-indicator.disconnected {
-  @apply bg-red-500;
+/* ─── Card Hover Glow ────────────────────────────────────────── */
+.card-hover {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card-hover:hover {
+  border-color: rgba(6, 182, 212, 0.2) !important;
+  box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.08), 0 8px 32px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: .5;
-  }
+/* ─── Stat Card Click ────────────────────────────────────────── */
+.stat-card {
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+.stat-card:active {
+  transform: scale(0.98);
 }
 
-.metric-card {
-  @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4 transition-all duration-200 hover:shadow-md;
+/* ─── Dark Custom Scrollbar ──────────────────────────────────── */
+.dark-scroll::-webkit-scrollbar { width: 3px; height: 3px; }
+.dark-scroll::-webkit-scrollbar-track { background: transparent; }
+.dark-scroll::-webkit-scrollbar-thumb { background: #1e3454; border-radius: 99px; }
+.dark-scroll::-webkit-scrollbar-thumb:hover { background: #2a4a72; }
+
+/* ─── Progress Bar Fill ──────────────────────────────────────── */
+.progress-fill {
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.metric-card:hover {
-  @apply transform scale-105;
+/* ─── Alert Row Severity Borders ─────────────────────────────── */
+.alert-row-critical { border-left: 2px solid #ef4444; }
+.alert-row-high     { border-left: 2px solid #f97316; }
+.alert-row-medium   { border-left: 2px solid #f59e0b; }
+.alert-row-low      { border-left: 2px solid #3b82f6; }
+
+/* ─── Live Pulse ─────────────────────────────────────────────── */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.live-dot { animation: livePulse 1.4s ease-in-out infinite; }
+
+/* ─── Toggle Transitions ─────────────────────────────────────── */
+.toggle-track { transition: background-color 0.2s ease; }
+.toggle-thumb { transition: transform 0.2s cubic-bezier(0.34, 1.3, 0.64, 1); }
+
+/* ─── Code Block ─────────────────────────────────────────────── */
+.code-block {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 11.5px;
+  line-height: 1.7;
 }
 
-.alert-badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+/* ─── Severity Ring (Overview breakdown) ────────────────────── */
+.severity-ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.alert-badge.critical {
-  @apply bg-red-100 text-red-800;
+/* ─── Table Row Hover ────────────────────────────────────────── */
+.table-row-hover {
+  transition: background-color 0.12s ease;
+}
+.table-row-hover:hover {
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
-.alert-badge.high {
-  @apply bg-orange-100 text-orange-800;
+/* ─── Input Focus ────────────────────────────────────────────── */
+.dark-input {
+  background: #0c1829;
+  border: 1px solid #1a2d48;
+  color: #e2e8f0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+.dark-input::placeholder { color: #475569; }
+.dark-input:focus {
+  outline: none;
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.08);
+}
+.dark-input option { background: #0c1829; }
 
-.alert-badge.medium {
-  @apply bg-yellow-100 text-yellow-800;
+/* ─── Blocked IP Badge ───────────────────────────────────────── */
+@keyframes blocked-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
 }
-
-.alert-badge.low {
-  @apply bg-blue-100 text-blue-800;
-}
-
-.threat-level-badge {
-  @apply inline-flex items-center px-2 py-1 rounded text-xs font-medium;
-}
-
-.packet-analysis-item {
-  @apply border-l-4 pl-4 py-2 transition-all duration-200;
-}
-
-.packet-analysis-item.block {
-  @apply border-red-500 bg-red-50;
-}
-
-.packet-analysis-item.monitor {
-  @apply border-yellow-500 bg-yellow-50;
-}
-
-.packet-analysis-item.allow {
-  @apply border-green-500 bg-green-50;
-}
-
-.event-row {
-  @apply transition-colors duration-150 hover:bg-gray-50;
-}
-
-.event-row.alert {
-  @apply bg-red-50 border-l-4 border-red-500;
-}
-
-.event-row.dns {
-  @apply bg-blue-50 border-l-4 border-blue-500;
-}
-
-.event-row.http {
-  @apply bg-green-50 border-l-4 border-green-500;
-}
-
-.progress-bar {
-  @apply w-full bg-gray-200 rounded-full h-2;
-}
-
-.progress-bar.filled {
-  @apply bg-blue-600 h-2 rounded-full transition-all duration-300;
-}
-
-.loading-spinner {
-  @apply animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600;
-}
-
-.connection-status {
-  @apply flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium;
-}
-
-.connection-status.connected {
-  @apply bg-green-100 text-green-800;
-}
-
-.connection-status.disconnected {
-  @apply bg-red-100 text-red-800;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .metric-card {
-    @apply p-3;
-  }
-  
-  .metric-card h3 {
-    @apply text-sm;
-  }
-  
-  .metric-card p {
-    @apply text-lg;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .metric-card {
-    @apply bg-gray-800 border-gray-700;
-  }
-  
-  .event-row:hover {
-    @apply bg-gray-700;
-  }
-  
-  .packet-analysis-item.block {
-    @apply bg-red-900;
-  }
-  
-  .packet-analysis-item.monitor {
-    @apply bg-yellow-900;
-  }
-  
-  .packet-analysis-item.allow {
-    @apply bg-green-900;
-  }
-}
+.blocked-dot { animation: blocked-pulse 2s ease-in-out infinite; }

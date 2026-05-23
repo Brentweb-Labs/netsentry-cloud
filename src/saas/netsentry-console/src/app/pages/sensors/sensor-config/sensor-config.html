@@ -1,0 +1,478 @@
+<!-- Sensor Configuration Page -->
+<div class="p-6 space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+        <svg class="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-xl font-semibold">Sensor Setup</h1>
+        <p class="text-sm text-base-content/60">Configure and deploy your Raspberry Pi sensor</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div role="tablist" class="tabs tabs-bordered">
+    <button role="tab" class="tab" [class.tab-active]="activeTab === 'wireguard'" (click)="activeTab = 'wireguard'">
+      WireGuard VPN
+    </button>
+    <button role="tab" class="tab" [class.tab-active]="activeTab === 'network'" (click)="activeTab = 'network'">
+      Network Bridge
+    </button>
+    <button role="tab" class="tab" [class.tab-active]="activeTab === 'services'" (click)="activeTab = 'services'">
+      Services
+    </button>
+    <button role="tab" class="tab" [class.tab-active]="activeTab === 'setup'" (click)="activeTab = 'setup'">
+      Setup Guide
+    </button>
+  </div>
+
+  <!-- WIREGUARD TAB -->
+  @if (activeTab === 'wireguard') {
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Configuration -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">WireGuard VPN Configuration</h3>
+          <p class="text-sm text-base-content/60 mb-4">
+            WireGuard creates a secure VPN tunnel from your Raspberry Pi to the cloud. The Pi initiates the connection, so it works through NAT.
+          </p>
+
+          <div class="space-y-4">
+            <div class="form-control">
+              <label class="label"><span class="label-text">VPS Endpoint</span></label>
+              <input type="text" class="input input-bordered"
+                     [value]="wireguardConfig().vpsEndpoint"
+                     (change)="updateVpsEndpoint($any($event.target).value)">
+              <label class="label"><span class="label-text-alt">Public URL of your NetSentry Cloud VPS</span></label>
+            </div>
+
+            <div class="form-control">
+              <label class="label"><span class="label-text">Sensor IP (WireGuard)</span></label>
+              <input type="text" class="input input-bordered font-mono"
+                     [value]="wireguardConfig().localIp" readonly>
+              <label class="label"><span class="label-text-alt">IP address on the VPN network</span></label>
+            </div>
+
+            <div class="divider">Keys</div>
+
+            <div class="form-control">
+              <label class="label"><span class="label-text">Public Key</span></label>
+              <div class="flex gap-2">
+                <input type="text" class="input input-bordered font-mono text-xs flex-1"
+                       [value]="wireguardConfig().publicKey" readonly>
+                <button class="btn btn-sm btn-ghost" (click)="generateWireGuardKeys()">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-control">
+              <label class="label"><span class="label-text">VPS Public Key</span></label>
+              <input type="text" class="input input-bordered font-mono text-xs"
+                     placeholder="Add the VPS WireGuard public key here">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VPS Command -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Add Sensor to VPS</h3>
+          <p class="text-sm text-base-content/60 mb-4">
+            Run this command on your VPS to add the Raspberry Pi as a WireGuard peer:
+          </p>
+
+          <div class="bg-base-200 rounded-lg p-4">
+            <code class="text-sm font-mono text-primary">{{ wgCommand() }}</code>
+          </div>
+
+          <div class="alert alert-warning mt-4">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>Make sure to run this on your VPS before the sensor can connect.</span>
+          </div>
+
+          <div class=" mt-4 p-4 bg-base-200 rounded-lg">
+            <h4 class="font-medium text-sm mb-2">Or use the API:</h4>
+            <code class="text-xs font-mono">POST /api/vps/wireguard/peer</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Environment Variables -->
+      <div class="card bg-base-100 border border-base-300 lg:col-span-2">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Environment Variables</h3>
+          <p class="text-sm text-base-content/60 mb-4">
+            Add these to your Raspberry Pi's <code class="text-xs">.env</code> file:
+          </p>
+
+          <div class="bg-base-200 rounded-lg p-4 overflow-x-auto">
+            <pre class="text-sm font-mono"># === WireGuard VPN ===
+WG_PRIVATE_KEY=<span class="text-primary">{{ wireguardConfig().privateKey }}</span>
+WG_VPS_PUBLIC_KEY=&lt;your-vps-public-key&gt;
+VPS_ENDPOINT=<span class="text-primary">{{ wireguardConfig().vpsEndpoint }}</span>
+VPS_WS_URL=<span class="text-primary">{{ wireguardConfig().vpsEndpoint }}</span>/ws/raspi
+
+# === API Configuration ===
+API_KEY=&lt;generated-from-dashboard&gt;
+
+# === Network (eth0=WAN, eth1=LAN) ===
+SURICATA_IFACE=br0
+LAN_SUBNET=<span class="text-primary">{{ networkConfig().lanSubnet }}</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- NETWORK TAB -->
+  @if (activeTab === 'network') {
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Interface Configuration -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Network Interfaces</h3>
+          <p class="text-sm text-base-content/60 mb-4">
+            Connect eth0 (WAN) to your modem and eth1 (LAN) to your router/switch.
+          </p>
+
+          <div class="space-y-4">
+            <div class="form-control">
+              <label class="label"><span class="label-text">WAN Interface (Internet)</span></label>
+              <select class="select select-bordered" [value]="networkConfig().wanInterface">
+                <option value="eth0">eth0 (Default)</option>
+              </select>
+              <label class="label"><span class="label-text-alt">Connected to modem</span></label>
+            </div>
+
+            <div class="form-control">
+              <label class="label"><span class="label-text">LAN Interface (Local Network)</span></label>
+              <select class="select select-bordered" [value]="networkConfig().lanInterface">
+                <option value="eth1">eth1 (Default)</option>
+              </select>
+              <label class="label"><span class="label-text-alt">Connected to router/switch</span></label>
+            </div>
+
+            <div class="form-control">
+              <label class="label"><span class="label-text">LAN Subnet</span></label>
+              <input type="text" class="input input-bordered font-mono"
+                     [value]="networkConfig().lanSubnet" readonly>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DHCP Configuration -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">DHCP Server</h3>
+          <p class="text-sm text-base-content/60 mb-4">
+            The Pi runs a DHCP server on the LAN interface to assign IPs to devices.
+          </p>
+
+          <div class="space-y-4">
+            <div class="form-control">
+              <label class="label"><span class="label-text">DHCP Range Start</span></label>
+              <input type="text" class="input input-bordered font-mono"
+                     [value]="networkConfig().dhcpStart" readonly>
+            </div>
+
+            <div class="form-control">
+              <label class="label"><span class="label-text">DHCP Range End</span></label>
+              <input type="text" class="input input-bordered font-mono"
+                     [value]="networkConfig().dhcpEnd" readonly>
+            </div>
+
+            <div class="form-control">
+              <label class="label"><span class="label-text">Pi LAN IP (Gateway)</span></label>
+              <input type="text" class="input input-bordered font-mono" value="192.168.100.1" readonly>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Network Diagram -->
+      <div class="card bg-base-100 border border-base-300 lg:col-span-2">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Network Topology</h3>
+          <div class="flex items-center justify-center py-8">
+            <div class="flex items-center gap-4">
+              <div class="flex flex-col items-center gap-2">
+                <div class="w-16 h-10 rounded border-2 border-base-300 flex items-center justify-center bg-base-200">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/>
+                  </svg>
+                </div>
+                <span class="text-xs">Modem</span>
+              </div>
+              <svg class="w-6 h-6 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+              </svg>
+              <div class="flex flex-col items-center gap-2">
+                <div class="w-16 h-10 rounded border-2 border-primary flex items-center justify-center bg-primary/10">
+                  <span class="text-xs font-bold">Pi</span>
+                </div>
+                <span class="text-xs text-primary">eth0 → br0 → eth1</span>
+              </div>
+              <svg class="w-6 h-6 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+              </svg>
+              <div class="flex flex-col items-center gap-2">
+                <div class="w-16 h-10 rounded border-2 border-base-300 flex items-center justify-center bg-base-200">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+                <span class="text-xs">Switch/Router</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-sm text-base-content/60">
+            Traffic flows: Modem → Pi (eth0) → Bridge (br0) → Pi (eth1) → Router → Clients
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- SERVICES TAB -->
+  @if (activeTab === 'services') {
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Suricata -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="card-title text-sm">Suricata IDS</h3>
+              <p class="text-sm text-base-content/60">Intrusion Detection System</p>
+            </div>
+            <input type="checkbox" class="toggle toggle-primary"
+                   [checked]="sensorSettings().suricataEnabled" (change)="toggleSuricata()"/>
+          </div>
+          <p class="text-sm mt-4">
+            Monitors all traffic on the bridge interface for threats like SQL injection, XSS, command injection, and more.
+          </p>
+          <div class="mt-4 p-3 bg-base-200 rounded-lg">
+            <div class="flex justify-between text-sm">
+              <span class="text-base-content/60">Rules Updated</span>
+              <span class="font-mono">Every 6 hours</span>
+            </div>
+            <div class="flex justify-between text-sm mt-2">
+              <span class="text-base-content/60">Events Log</span>
+              <span class="font-mono">/data/logs/suricata/eve.json</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Packet Capture -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="card-title text-sm">Packet Capture</h3>
+              <p class="text-sm text-base-content/60">Full Packet Inspection</p>
+            </div>
+            <input type="checkbox" class="toggle toggle-primary"
+                   [checked]="sensorSettings().packetCaptureEnabled" (change)="togglePacketCapture()"/>
+          </div>
+          <p class="text-sm mt-4">
+            Captures raw packets for detailed analysis. Optional feature that uses additional storage.
+          </p>
+        </div>
+      </div>
+
+      <!-- Auto-Blocking -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="card-title text-sm">Auto-Blocking</h3>
+              <p class="text-sm text-base-content/60">Automatic Threat Prevention</p>
+            </div>
+            <input type="checkbox" class="toggle toggle-error"
+                   [checked]="sensorSettings().autoBlockEnabled" (change)="toggleAutoBlock()"/>
+          </div>
+          <p class="text-sm mt-4">
+            Automatically blocks malicious IPs using iptables when threats are detected.
+          </p>
+          <div class="form-control mt-4">
+            <label class="label"><span class="label-text">Block Duration (hours)</span></label>
+            <input type="number" class="input input-bordered w-32"
+                   [value]="sensorSettings().blockDurationHours">
+          </div>
+        </div>
+      </div>
+
+      <!-- Telemetry -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="card-title text-sm">Telemetry</h3>
+              <p class="text-sm text-base-content/60">System Health Monitoring</p>
+            </div>
+            <input type="checkbox" class="toggle toggle-primary"
+                   [checked]="sensorSettings().telemetryEnabled" (change)="toggleTelemetry()"/>
+          </div>
+          <p class="text-sm mt-4">
+            Sends CPU, memory, disk, and temperature metrics to the cloud dashboard.
+          </p>
+        </div>
+      </div>
+
+      <!-- Docker Services -->
+      <div class="card bg-base-100 border border-base-300 lg:col-span-2">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Docker Services</h3>
+          <p class="text-sm text-base-content/60 mb-4">
+            These services run on your Raspberry Pi:
+          </p>
+          <div class="overflow-x-auto">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Description</th>
+                  <th>Port</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="font-mono text-xs">idps-wireguard</td>
+                  <td>WireGuard VPN tunnel</td>
+                  <td>51820/udp</td>
+                  <td><span class="badge badge-success badge-sm">Running</span></td>
+                </tr>
+                <tr>
+                  <td class="font-mono text-xs">idps-suricata</td>
+                  <td>IDS/IPS engine</td>
+                  <td>-</td>
+                  <td><span class="badge badge-success badge-sm">Running</span></td>
+                </tr>
+                <tr>
+                  <td class="font-mono text-xs">idps-collector</td>
+                  <td>Event collector & forwarder</td>
+                  <td>8080</td>
+                  <td><span class="badge badge-success badge-sm">Running</span></td>
+                </tr>
+                <tr>
+                  <td class="font-mono text-xs">idps-telemetry</td>
+                  <td>System metrics</td>
+                  <td>8096</td>
+                  <td><span class="badge badge-success badge-sm">Running</span></td>
+                </tr>
+                <tr>
+                  <td class="font-mono text-xs">idps-network-filter</td>
+                  <td>iptables blocking</td>
+                  <td>8092</td>
+                  <td><span class="badge badge-success badge-sm">Running</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- SETUP TAB -->
+  @if (activeTab === 'setup') {
+    <div class="space-y-6">
+      <!-- Quick Start -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Quick Start (One-Line Installer)</h3>
+          <p class="text-sm text-base-content/60 mb-4">
+            Run this on your Raspberry Pi as root:
+          </p>
+          <div class="bg-base-200 rounded-lg p-4">
+            <code class="text-sm font-mono text-primary">curl -fsSL https://raw.githubusercontent.com/netsentry-sensor/main/scripts/setup/install.sh | sudo bash</code>
+          </div>
+          <p class="text-sm text-base-content/60 mt-4">
+            This installer will:
+          </p>
+          <ul class="list-disc list-inside text-sm text-base-content/60 mt-2 space-y-1">
+            <li>Install Docker, WireGuard tools, and iptables-persistent</li>
+            <li>Download all required files to <code class="text-xs">/opt/netsentry/</code></li>
+            <li>Generate WireGuard keys and display the public key</li>
+            <li>Set up the network bridge (eth0 ↔ eth1)</li>
+            <li>Start all NetSentry services</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Setup Steps -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Setup Progress</h3>
+          <div class="mt-4 space-y-3">
+            @for (step of setupSteps(); track step.id) {
+              <div class="flex items-center gap-3 p-3 rounded-lg border"
+                   [class.bg-success/10]="step.completed"
+                   [class.border-success/30]="step.completed"
+                   [class.bg-base-200]="!step.completed">
+                <input type="checkbox" class="checkbox checkbox-sm"
+                       [checked]="step.completed" (change)="markStepComplete(step.id)"/>
+                <div>
+                  <p class="font-medium text-sm">{{ step.title }}</p>
+                  <p class="text-xs text-base-content/60">{{ step.description }}</p>
+                </div>
+              </div>
+            }
+          </div>
+          <div class="mt-4">
+            <div class="text-sm text-base-content/60">Progress: {{ completedSteps }}/{{ setupSteps().length }} steps</div>
+            <progress class="progress progress-primary w-full" [value]="completedSteps * 25" max="100"></progress>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual Commands -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-sm">Manual Setup (If Needed)</h3>
+          <div class="space-y-4">
+            <div>
+              <h4 class="font-medium text-sm mb-2">1. Set up network bridge</h4>
+              <div class="bg-base-200 rounded-lg p-3">
+                <code class="text-xs font-mono">sudo /opt/netsentry/scripts/setup/setup-bridge-unified.sh</code>
+              </div>
+            </div>
+            <div>
+              <h4 class="font-medium text-sm mb-2">2. Configure environment</h4>
+              <div class="bg-base-200 rounded-lg p-3">
+                <code class="text-xs font-mono">cp /opt/netsentry/.env.example /opt/netsentry/.env</code>
+              </div>
+            </div>
+            <div>
+              <h4 class="font-medium text-sm mb-2">3. Start services</h4>
+              <div class="bg-base-200 rounded-lg p-3">
+                <code class="text-xs font-mono">cd /opt/netsentry && docker compose -f docker-compose.raspi.yml up -d</code>
+              </div>
+            </div>
+            <div>
+              <h4 class="font-medium text-sm mb-2">4. Check status</h4>
+              <div class="bg-base-200 rounded-lg p-3">
+                <code class="text-xs font-mono">docker compose -f docker-compose.raspi.yml ps</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

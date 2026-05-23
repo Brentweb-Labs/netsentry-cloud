@@ -1,0 +1,41 @@
+<div class="text-sm breadcrumbs mb-4">
+  <ul><li><a routerLink="/payment">Billing</a></li><li>Invoices</li></ul>
+</div>
+
+<h1 class="text-xl font-bold mb-6">Invoices</h1>
+
+<div class="card bg-base-100 border border-base-300 overflow-hidden">
+  @if (loading()) {
+    <div class="p-6 space-y-3 animate-pulse">
+      @for (i of [1,2,3]; track i) { <div class="h-10 bg-base-300 rounded"></div> }
+    </div>
+  } @else if (invoices().length === 0) {
+    <div class="p-12 text-center text-sm text-base-content/50">No invoices yet.</div>
+  } @else {
+    <div class="overflow-x-auto">
+      <table class="table table-sm">
+        <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th><th class="text-right">PDF</th></tr></thead>
+        <tbody>
+          @for (inv of invoices(); track inv.id) {
+            <tr class="hover">
+              <td class="font-mono text-xs">{{ inv.number }}</td>
+              <td>{{ inv.date | date:'mediumDate' }}</td>
+              <td class="font-semibold">€{{ inv.amount_eur }}</td>
+              <td><app-status-badge [status]="inv.status" /></td>
+              <td class="text-right">
+                @if (inv.pdf_url) {
+                  <a [href]="inv.pdf_url" target="_blank" class="btn btn-ghost btn-xs gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    PDF
+                  </a>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

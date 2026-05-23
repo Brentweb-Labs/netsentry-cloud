@@ -781,6 +781,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/vps/auth/login", post(login_handler))
         .with_state(state)
         .layer(middleware::from_fn(jwt_auth))
+        .layer(middleware::from_fn(sensor_auth_middleware))
         .layer(middleware::from_fn(ip_whitelist_middleware))
         .layer(
             CorsLayer::new()
@@ -2603,11 +2604,55 @@ async fn handle_raspi_ws(mut socket: WebSocket, state: Arc<AppState>) {
                     Err(broadcast::error::RecvError::Closed) => break,
                 }
             }
-            // Receive acks and pings from Raspi
+            // Receive acks, registrations, and pings from Raspi
             raspi_msg = socket.recv() => {
                 match raspi_msg {
                     Some(Ok(Message::Text(text))) => {
-                        tracing::debug!("Raspi WS ack: {}", text);
+                        tracing::debug!("Raspi WS message: {}", text);
+                        // Parse and handle sensor registration
+                        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
+                            if let Some(cmd_type) = value.get("type").and_then(|v| v.as_str()) {
+                                match cmd_type {
+                                    "sensor_register" => {
+                                        let sensor_id = value.get("sensor_id").and_then(|v| v.as_str()).unwrap_or("unknown");
+                                        let tenant_id = value.get("tenant_id").and_then(|v| v.as_str()).unwrap_or("default");
+                                        let hostname = value.get("hostname").and_then(|v| v.as_str()).unwrap_or("");
+                                        let capabilities: Vec<String> = value.get("capabilities")
+                                            .and_then(|v| v.as_array())
+                                            .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                                            .unwrap_or_default();
+
+                                        tracing::info!("Sensor registered: {} (tenant: {})", sensor_id, tenant_id);
+
+                                        // Update sensor with registration info
+                                        let db = state.mongo_client.database("idps_database");
+                                        let sensors_collection = db.collection::<mongodb::bson::Document>("sensors");
+
+                                        let _ = sensors_collection.update_one(
+                                            mongodb::bson::doc! { "sensorId": sensor_id },
+                                            mongodb::bson::doc! {
+                                                "$set": {
+                                                    "status": "active",
+                                                    "lastConnectedAt": mongodb::bson::DateTime::now(),
+                                                    "hardwareInfo.hostname": hostname,
+                                                }
+                                            },
+                                        ).await;
+
+                                        // Send current config to sensor
+                                        if let Ok(Some(doc)) = sensors_collection.find_one(mongodb::bson::doc! { "sensorId": sensor_id }).await {
+                                            let config = doc.get_document("config").ok();
+                                            let sensor_config = serde_json::json!({
+                                                "type": "sensor_config",
+                                                "config": config,
+                                            });
+                                            let _ = socket.send(Message::Text(sensor_config.to_string().into())).await;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
                     }
                     Some(Ok(Message::Close(_))) | None => break,
                     _ => {}
@@ -2637,6 +2682,11 @@ struct LoginResponse {
 /// Injected as an Axum request extension by `jwt_auth`.
 #[derive(Clone)]
 struct TenantId(String);
+
+/// Newtype wrapping the sensor_id extracted from sensor API key.
+/// Injected as an Axum request extension by `sensor_auth_middleware`.
+#[derive(Clone)]
+struct SensorId(String);
 
 /// MongoDB tenant document.
 #[derive(Debug, Serialize, Deserialize)]
@@ -2699,6 +2749,91 @@ const PUBLIC_PATHS: &[&str] = &[
 const INTERNAL_INGEST_PREFIXES: &[&str] = &[
     "/api/alerts/ingest", "/api/traffic", "/api/telemetry", "/api/logs/submit",
 ];
+
+/// Paths that require sensor API key authentication (X-API-Key header)
+const SENSOR_AUTH_PREFIXES: &[&str] = &[
+    "/api/traffic", "/api/alerts/ingest", "/api/telemetry",
+];
+
+// ─── Sensor API Key Auth Middleware ──────────────────────────────────────────────
+
+async fn sensor_auth_middleware(
+    request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
+    // Get state from request extensions (set by .with_state())
+    let state = match request.extensions().get::<Arc<AppState>>() {
+        Some(s) => s.clone(),
+        None => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": "Internal server error" }))).into_response();
+        }
+    };
+
+    let path = request.uri().path();
+
+    // Only apply to sensor auth paths
+    if !SENSOR_AUTH_PREFIXES.iter().any(|p| path.starts_with(p)) {
+        return next.run(request).await;
+    }
+
+    // Check for X-API-Key header
+    let api_key = request
+        .headers()
+        .get("x-api-key")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let Some(api_key) = api_key else {
+        return (StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "Missing sensor API key (X-API-Key header)" })))
+            .into_response();
+    };
+
+    // Validate against MongoDB sensors collection
+    let db = state.mongo_client.database("idps_database");
+    let sensors_collection = db.collection::<mongodb::bson::Document>("sensors");
+
+    let filter = mongodb::bson::doc! {
+        "apiKey": &api_key,
+        "status": { "$ne": "revoked" }
+    };
+
+    match sensors_collection.find_one(filter).await {
+        Ok(Some(sensor_doc)) => {
+            // Extract tenant_id from sensor and add to request
+            let tenant_id = sensor_doc.get_str("tenantId").unwrap_or("default");
+            let sensor_id = sensor_doc.get_str("sensorId").unwrap_or("unknown");
+
+            let mut request = request;
+            request.extensions_mut().insert(TenantId(tenant_id.to_string()));
+            request.extensions_mut().insert(SensorId(sensor_id.to_string()));
+
+            // Update last connected timestamp
+            let _ = sensors_collection.update_one(
+                mongodb::bson::doc! { "sensorId": sensor_id },
+                mongodb::bson::doc! {
+                    "$set": {
+                        "lastConnectedAt": mongodb::bson::DateTime::now(),
+                        "status": "active"
+                    }
+                },
+            ).await;
+
+            next.run(request).await
+        }
+        Ok(None) => {
+            (StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({ "error": "Invalid sensor API key" })))
+                .into_response()
+        }
+        Err(e) => {
+            println!("Sensor auth error: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": "Authentication service unavailable" })))
+                .into_response()
+        }
+    }
+}
 
 async fn jwt_auth(request: Request<axum::body::Body>, next: Next) -> Response {
     let path = request.uri().path();

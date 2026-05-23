@@ -1,0 +1,86 @@
+<!-- Page header -->
+<div class="mb-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold">System Services</h1>
+      <p class="text-sm text-base-content/60 mt-1">Docker container health for all NetSentry microservices</p>
+    </div>
+    <div class="join">
+      <a routerLink="/system/services" class="btn btn-sm join-item btn-primary">Services</a>
+      <a routerLink="/system/logs"     class="btn btn-sm join-item btn-ghost">Logs</a>
+    </div>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="space-y-3">
+    @for (_ of [1,2,3,4,5]; track $index) {
+      <div class="card-abstract p-5 animate-pulse">
+        <div class="h-16 bg-base-300/20 rounded-lg"></div>
+      </div>
+    }
+  </div>
+} @else {
+  <div class="space-y-3">
+    @for (s of services(); track s.name; let i = $index) {
+      <div class="card-abstract p-4">
+        <!-- Header row -->
+        <div class="flex items-center justify-between gap-4 mb-3">
+          <div class="flex items-center gap-3">
+            <app-status-badge [status]="statusForService(s)" />
+            <div>
+              <span class="font-semibold">{{ s.display_name }}</span>
+              <span class="ml-2 font-mono text-xs text-base-content/40">{{ s.name }}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-base-content/50 px-2 py-1 bg-base-200/30 rounded">{{ s.version }}</span>
+            <span class="text-xs text-base-content/50">{{ formatUptime(s.uptime_seconds) }}</span>
+            <button class="btn btn-xs btn-ghost text-error/70 hover:text-error hover:bg-error/10"
+              [disabled]="restarting() === s.name"
+              (click)="promptRestart(s.name)">
+              @if (restarting() === s.name) {
+                <span class="loading loading-spinner loading-xs"></span>
+              } @else {
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Restart
+              }
+            </button>
+          </div>
+        </div>
+
+        <!-- Metrics row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div class="flex justify-between text-xs text-base-content/60 mb-1">
+              <span class="font-medium">CPU</span>
+              <span class="font-semibold">{{ s.cpu_percent }}%</span>
+            </div>
+            <div class="h-1.5 bg-base-200/50 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" [class]="barColor(s.cpu_percent)" [style.width]="s.cpu_percent + '%'"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs text-base-content/60 mb-1">
+              <span class="font-medium">Memory</span>
+              <span class="font-semibold">{{ s.memory_mb }} / {{ s.memory_limit_mb }} MB</span>
+            </div>
+            <div class="h-1.5 bg-base-200/50 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" [class]="barColor(memoryPct(s))" [style.width]="memoryPct(s) + '%'"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<app-confirm-modal
+  id="restart-modal"
+  title="Restart service"
+  [message]="'Restart ' + (pendingRestart() ?? '') + '? Active connections will be dropped briefly.'"
+  confirmLabel="Restart"
+  [danger]="true"
+  (confirmed)="onRestartConfirmed()" />

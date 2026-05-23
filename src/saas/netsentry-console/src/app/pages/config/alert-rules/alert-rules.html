@@ -1,0 +1,71 @@
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-xl font-bold">Alert Delivery Rules</h1>
+    <p class="text-sm text-base-content/60">Configure where alerts are sent when threats are detected</p>
+  </div>
+  <div class="join">
+    <a routerLink="/config/detection"    class="btn btn-sm join-item btn-ghost">Detection</a>
+    <a routerLink="/config/alerts"       class="btn btn-sm join-item btn-active">Alerts</a>
+    <a routerLink="/config/integrations" class="btn btn-sm join-item btn-ghost">Integrations</a>
+  </div>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
+  <!-- SMTP -->
+  <div class="card bg-base-100 border border-base-300">
+    <div class="card-body gap-4">
+      <h3 class="card-title text-sm">Email (SMTP)</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <label class="form-control sm:col-span-2">
+          <div class="label"><span class="label-text text-xs">SMTP host</span></div>
+          <input type="text" formControlName="smtp_host" placeholder="smtp.example.com" class="input input-bordered input-sm" />
+        </label>
+        <label class="form-control">
+          <div class="label"><span class="label-text text-xs">Port</span></div>
+          <input type="number" formControlName="smtp_port" class="input input-bordered input-sm" />
+        </label>
+        <label class="form-control sm:col-span-3">
+          <div class="label"><span class="label-text text-xs">From address</span></div>
+          <input type="email" formControlName="smtp_from" placeholder="alerts@yourdomain.com" class="input input-bordered input-sm" />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slack -->
+  <div class="card bg-base-100 border border-base-300">
+    <div class="card-body gap-3">
+      <h3 class="card-title text-sm">Slack</h3>
+      <label class="form-control">
+        <div class="label"><span class="label-text text-xs">Incoming webhook URL</span></div>
+        <input type="url" formControlName="slack_webhook" placeholder="https://hooks.slack.com/services/…"
+          class="input input-bordered input-sm font-mono" />
+      </label>
+    </div>
+  </div>
+
+  <!-- Custom webhook -->
+  <div class="card bg-base-100 border border-base-300">
+    <div class="card-body gap-3">
+      <h3 class="card-title text-sm">Custom webhook</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <label class="form-control">
+          <div class="label"><span class="label-text text-xs">URL</span></div>
+          <input type="url" formControlName="webhook_url" placeholder="https://…" class="input input-bordered input-sm" />
+        </label>
+        <label class="form-control">
+          <div class="label"><span class="label-text text-xs">HMAC secret</span></div>
+          <input type="text" formControlName="webhook_secret" placeholder="secret" class="input input-bordered input-sm font-mono" />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-end gap-3">
+    @if (saved()) { <span class="text-sm text-success flex items-center gap-1">✓ Saved</span> }
+    <button type="submit" class="btn btn-primary btn-sm" [disabled]="saving()">
+      @if (saving()) { <span class="loading loading-spinner loading-xs"></span> }
+      Save changes
+    </button>
+  </div>
+</form>

@@ -1,0 +1,80 @@
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-xl font-semibold">Detection Settings</h1>
+    <p class="text-sm text-base-content/60">Configure brute-force, DDoS, and anomaly detection thresholds</p>
+  </div>
+  <div class="join">
+    <a routerLink="/config/detection" class="btn btn-sm join-item btn-active">Detection</a>
+    <a routerLink="/config/alerts"    class="btn btn-sm join-item btn-ghost">Alerts</a>
+    <a routerLink="/config/integrations" class="btn btn-sm join-item btn-ghost">Integrations</a>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="animate-pulse space-y-3">
+    <div class="h-32 bg-base-300/20 rounded-lg"></div>
+    <div class="h-24 bg-base-300/20 rounded-lg"></div>
+  </div>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
+    <!-- Thresholds -->
+    <div class="card-abstract p-5">
+      <h3 class="font-semibold mb-4">Brute-force detection</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <label class="form-control">
+          <div class="label"><span class="label-text text-sm">Request threshold</span></div>
+          <input type="number" formControlName="brute_force_threshold" class="input input-bordered w-full input-sm input-abstract" />
+        </label>
+        <label class="form-control">
+          <div class="label"><span class="label-text text-sm">Window (seconds)</span></div>
+          <input type="number" formControlName="brute_force_window_seconds" class="input input-bordered w-full input-sm input-abstract" />
+        </label>
+        <label class="form-control">
+          <div class="label"><span class="label-text text-sm">Block duration (hours)</span></div>
+          <input type="number" formControlName="block_duration_hours" class="input input-bordered w-full input-sm input-abstract" />
+        </label>
+      </div>
+      <div class="form-control mt-4">
+        <label class="label cursor-pointer justify-start gap-3">
+          <input type="checkbox" formControlName="auto_block_enabled" class="toggle toggle-primary toggle-sm" />
+          <span class="label-text text-sm">Auto-block on detection</span>
+        </label>
+        <p class="text-xs text-base-content/50 ml-11">Automatically block IPs that exceed the threshold above.</p>
+      </div>
+    </div>
+
+    <!-- Paths & whitelist -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="card-abstract p-5">
+        <h3 class="font-semibold mb-2">Monitored paths</h3>
+        <p class="text-xs text-base-content/50 mb-2">One path per line</p>
+        <textarea formControlName="monitored_paths_raw" rows="5"
+          class="textarea textarea-bordered w-full font-mono text-xs resize-none input-abstract"
+          placeholder="/login&#10;/api/auth"></textarea>
+      </div>
+      <div class="card-abstract p-5">
+        <h3 class="font-semibold mb-2">Whitelist (CIDR)</h3>
+        <p class="text-xs text-base-content/50 mb-2">IPs/ranges never auto-blocked — one per line</p>
+        <textarea formControlName="whitelist_raw" rows="5"
+          class="textarea textarea-bordered w-full font-mono text-xs resize-none input-abstract"
+          placeholder="10.0.0.0/8&#10;192.168.0.0/16"></textarea>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3">
+      @if (saved()) {
+        <span class="text-sm text-success flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          Saved
+        </span>
+      }
+      <button type="submit" class="btn btn-primary btn-sm" [disabled]="form.invalid || saving()">
+        @if (saving()) { <span class="loading loading-spinner loading-xs"></span> }
+        Save changes
+      </button>
+    </div>
+  </form>
+}

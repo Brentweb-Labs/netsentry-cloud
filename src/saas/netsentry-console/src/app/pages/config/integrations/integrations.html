@@ -1,0 +1,55 @@
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-xl font-bold">Integrations</h1>
+    <p class="text-sm text-base-content/60">Connect third-party platforms for incident management and log forwarding</p>
+  </div>
+  <div class="join">
+    <a routerLink="/config/detection"    class="btn btn-sm join-item btn-ghost">Detection</a>
+    <a routerLink="/config/alerts"       class="btn btn-sm join-item btn-ghost">Alerts</a>
+    <a routerLink="/config/integrations" class="btn btn-sm join-item btn-active">Integrations</a>
+  </div>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
+  <div class="card bg-base-100 border border-base-300">
+    <div class="card-body gap-3">
+      <h3 class="card-title text-sm">PagerDuty</h3>
+      <label class="form-control">
+        <div class="label"><span class="label-text text-xs">Routing key</span></div>
+        <input type="text" formControlName="pagerduty_routing_key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          class="input input-bordered input-sm font-mono" />
+      </label>
+    </div>
+  </div>
+
+  <div class="card bg-base-100 border border-base-300">
+    <div class="card-body gap-4">
+      <h3 class="card-title text-sm">SIEM / Syslog forwarding</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <label class="form-control sm:col-span-2">
+          <div class="label"><span class="label-text text-xs">Host</span></div>
+          <input type="text" formControlName="syslog_host" placeholder="siem.internal" class="input input-bordered input-sm" />
+        </label>
+        <label class="form-control">
+          <div class="label"><span class="label-text text-xs">Port</span></div>
+          <input type="number" formControlName="syslog_port" class="input input-bordered input-sm" />
+        </label>
+        <label class="form-control">
+          <div class="label"><span class="label-text text-xs">Protocol</span></div>
+          <select formControlName="syslog_protocol" class="select select-bordered select-sm">
+            <option value="udp">UDP</option>
+            <option value="tcp">TCP</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-end gap-3">
+    @if (saved()) { <span class="text-sm text-success flex items-center gap-1">✓ Saved</span> }
+    <button type="submit" class="btn btn-primary btn-sm" [disabled]="saving()">
+      @if (saving()) { <span class="loading loading-spinner loading-xs"></span> }
+      Save changes
+    </button>
+  </div>
+</form>

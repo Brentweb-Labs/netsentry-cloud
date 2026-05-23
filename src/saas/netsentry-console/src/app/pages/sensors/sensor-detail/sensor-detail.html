@@ -1,0 +1,91 @@
+<!-- Breadcrumb -->
+<div class="text-sm breadcrumbs mb-4">
+  <ul>
+    <li><a routerLink="/sensors">Sensors</a></li>
+    <li>{{ sensor()?.name ?? '...' }}</li>
+  </ul>
+</div>
+
+@if (loading()) {
+  <div class="animate-pulse space-y-3">
+    <div class="h-6 bg-base-300 rounded w-48"></div>
+    <div class="h-4 bg-base-300 rounded w-32"></div>
+  </div>
+} @else if (sensor(); as s) {
+  <!-- Header -->
+  <div class="flex items-start justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <h1 class="text-xl font-bold">{{ s.name }}</h1>
+      <app-status-badge [status]="s.status" />
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="card bg-base-100 border border-base-300">
+      <div class="card-body p-3 pb-0">
+        <p class="text-xs text-base-content/60">Events</p>
+        <p class="text-2xl font-bold">{{ s.eventsCount || 0 }}</p>
+      </div>
+    </div>
+    <div class="card bg-base-100 border border-base-300">
+      <div class="card-body p-3 pb-0">
+        <p class="text-xs text-base-content/60">Alerts</p>
+        <p class="text-2xl font-bold" [class.text-error]="s.alertsCount > 0">{{ s.alertsCount || 0 }}</p>
+      </div>
+    </div>
+    <div class="card bg-base-100 border border-base-300">
+      <div class="card-body p-3 pb-0">
+        <p class="text-xs text-base-content/60">Auto-Block</p>
+        <p class="text-2xl font-bold">{{ s.autoBlockEnabled ? 'ON' : 'OFF' }}</p>
+      </div>
+    </div>
+    <div class="card bg-base-100 border border-base-300">
+      <div class="card-body p-3 pb-0">
+        <p class="text-xs text-base-content/60">Last Seen</p>
+        <p class="text-lg font-bold">{{ s.lastConnectedAt ? (s.lastConnectedAt | date:'short') : 'Never' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Details -->
+  <div class="card bg-base-100 border border-base-300">
+    <div class="card-body">
+      <h3 class="card-title text-sm">Sensor Details</h3>
+      <dl class="space-y-2 text-sm mt-2">
+        <div class="flex justify-between"><dt class="text-base-content/60">Sensor ID</dt><dd class="font-mono text-xs">{{ s.sensorId }}</dd></div>
+        <div class="flex justify-between"><dt class="text-base-content/60">Public IP</dt><dd class="font-mono text-xs">{{ s.publicIp || 'Unknown' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-base-content/60">Location</dt><dd>{{ s.location || 'Unknown' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-base-content/60">Created</dt><dd>{{ s.createdAt | date:'mediumDate' }}</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- Hardware Info -->
+  @if (s.hardwareInfo) {
+    <div class="card bg-base-100 border border-base-300 mt-4">
+      <div class="card-body">
+        <h3 class="card-title text-sm">Hardware Information</h3>
+        <dl class="space-y-2 text-sm mt-2">
+          <div class="flex justify-between"><dt class="text-base-content/60">Model</dt><dd>{{ s.hardwareInfo.model || 'Unknown' }}</dd></div>
+          <div class="flex justify-between"><dt class="text-base-content/60">OS</dt><dd>{{ s.hardwareInfo.os || 'Unknown' }}</dd></div>
+          <div class="flex justify-between"><dt class="text-base-content/60">Suricata Version</dt><dd class="font-mono text-xs">{{ s.hardwareInfo.suricataVersion || 'Unknown' }}</dd></div>
+        </dl>
+      </div>
+    </div>
+  }
+
+  <!-- Configuration -->
+  @if (s.config) {
+    <div class="card bg-base-100 border border-base-300 mt-4">
+      <div class="card-body">
+        <h3 class="card-title text-sm">Configuration</h3>
+        <dl class="space-y-2 text-sm mt-2">
+          <div class="flex justify-between"><dt class="text-base-content/60">Auto-Block Enabled</dt><dd>{{ s.config.autoBlockEnabled ? 'Yes' : 'No' }}</dd></div>
+          <div class="flex justify-between"><dt class="text-base-content/60">Block Duration</dt><dd>{{ s.config.blockDurationHours || 24 }} hours</dd></div>
+          <div class="flex justify-between"><dt class="text-base-content/60">Min Threat Level</dt><dd>{{ s.config.minThreatLevel || 1 }}</dd></div>
+        </dl>
+      </div>
+    </div>
+  }
+}

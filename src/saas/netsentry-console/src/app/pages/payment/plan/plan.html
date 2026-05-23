@@ -1,0 +1,40 @@
+<div class="text-sm breadcrumbs mb-4">
+  <ul><li><a routerLink="/payment">Billing</a></li><li>Plan</li></ul>
+</div>
+
+<h1 class="text-xl font-bold mb-1">Change plan</h1>
+<p class="text-sm text-base-content/60 mb-8">Upgrade or downgrade at any time. Changes take effect next billing cycle.</p>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+  @for (tier of tiers; track tier.id) {
+    <div class="card border" [class.border-primary]="sub()?.plan === tier.id" [class.border-base-300]="sub()?.plan !== tier.id"
+      [class.bg-base-100]="true">
+      <div class="card-body gap-3">
+        @if (sub()?.plan === tier.id) {
+          <div class="badge badge-primary badge-sm self-start">Current plan</div>
+        }
+        <h3 class="card-title text-base">{{ tier.name }}</h3>
+        <p class="text-2xl font-black">{{ tier.price }}</p>
+        <ul class="space-y-1.5 flex-1">
+          @for (f of tier.features; track f) {
+            <li class="flex items-center gap-2 text-sm">
+              <svg class="w-4 h-4 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              {{ f }}
+            </li>
+          }
+        </ul>
+        <div class="card-actions mt-2">
+          <button class="btn btn-block btn-sm"
+            [class.btn-primary]="sub()?.plan !== tier.id"
+            [class.btn-disabled]="sub()?.plan === tier.id"
+            [disabled]="sub()?.plan === tier.id"
+            (click)="select()">
+            {{ sub()?.plan === tier.id ? 'Active' : 'Switch to ' + tier.name }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

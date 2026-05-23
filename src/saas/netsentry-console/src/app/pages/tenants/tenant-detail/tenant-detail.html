@@ -1,0 +1,141 @@
+<div class="text-sm breadcrumbs mb-4">
+  <ul><li><a routerLink="/tenants">Tenants</a></li><li>{{ tenant()?.name ?? '…' }}</li></ul>
+</div>
+
+@if (loading()) {
+  <div class="animate-pulse h-8 bg-base-300 rounded w-48"></div>
+} @else if (tenant(); as t) {
+  <div class="flex items-center gap-3 mb-6">
+    <h1 class="text-xl font-bold">{{ t.name }}</h1>
+    <app-status-badge [status]="t.status" />
+    <span class="badge badge-ghost badge-sm capitalize ml-1">{{ t.plan }}</span>
+  </div>
+
+  <!-- Tabs -->
+  <div role="tablist" class="tabs tabs-bordered mb-6">
+    @for (tb of tabs; track tb.key) {
+      <button role="tab" class="tab" [class.tab-active]="tab() === tb.key" (click)="tab.set(tb.key)">{{ tb.label }}</button>
+    }
+  </div>
+
+  <!-- Overview -->
+  @if (tab() === 'overview') {
+    <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="stat bg-base-100 border border-base-300 rounded-box">
+        <div class="stat-title">Sites</div><div class="stat-value text-2xl">{{ t.site_count }}</div>
+      </div>
+      <div class="stat bg-base-100 border border-base-300 rounded-box">
+        <div class="stat-title">Users</div><div class="stat-value text-2xl">{{ t.user_count }}</div>
+      </div>
+      <div class="stat bg-base-100 border border-base-300 rounded-box col-span-2 lg:col-span-1">
+        <div class="stat-title">Admin email</div><div class="stat-value text-base font-mono">{{ t.admin_email }}</div>
+      </div>
+    </div>
+  }
+
+  <!-- Users -->
+  @if (tab() === 'users') {
+    <div class="card bg-base-100 border border-base-300 overflow-hidden mb-4">
+      <div class="card-body pb-0">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="card-title text-sm">Users</h3>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+          <tbody>
+            @for (u of users(); track u.id) {
+              <tr class="hover">
+                <td class="font-medium">{{ u.name }}</td>
+                <td class="text-sm">{{ u.email }}</td>
+                <td><span class="badge badge-ghost badge-sm capitalize">{{ u.role.replace('_',' ') }}</span></td>
+                <td><app-status-badge [status]="u.status" /></td>
+                <td class="text-xs text-base-content/60">{{ u.last_login ? (u.last_login | date:'short') : '—' }}</td>
+                <td class="text-right">
+                  @if (u.status !== 'deactivated') {
+                    <button class="btn btn-ghost btn-xs text-error"
+                      (click)="promptDeactivate(u.id)">
+                      Deactivate
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Invite form -->
+    <div class="card bg-base-100 border border-base-300">
+      <div class="card-body">
+        <h3 class="card-title text-sm mb-2">Invite user</h3>
+        <form [formGroup]="inviteForm" (ngSubmit)="invite()" class="flex flex-wrap gap-3 items-end">
+          <label class="form-control">
+            <div class="label py-0.5"><span class="label-text text-xs">Name</span></div>
+            <input type="text" formControlName="name" placeholder="Full name" class="input input-bordered input-xs w-36" />
+          </label>
+          <label class="form-control">
+            <div class="label py-0.5"><span class="label-text text-xs">Email</span></div>
+            <input type="email" formControlName="email" placeholder="user@example.com" class="input input-bordered input-xs w-48" />
+          </label>
+          <label class="form-control">
+            <div class="label py-0.5"><span class="label-text text-xs">Role</span></div>
+            <select formControlName="role" class="select select-bordered select-xs">
+              <option value="tenant_admin">Admin</option>
+              <option value="operator">Operator</option>
+              <option value="viewer">Viewer</option>
+            </select>
+          </label>
+          <button type="submit" class="btn btn-primary btn-xs" [disabled]="inviteForm.invalid">Send invite</button>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- API Keys -->
+  @if (tab() === 'api-keys') {
+    <div class="flex justify-end mb-4">
+      <button class="btn btn-primary btn-sm" (click)="newKeyVisible.set(!newKeyVisible())">
+        {{ newKeyVisible() ? 'Cancel' : 'New API Key' }}
+      </button>
+    </div>
+    @if (newKeyVisible()) {
+      <div class="card bg-base-100 border border-base-300 mb-4">
+        <div class="card-body">
+          <form [formGroup]="newKeyForm" (ngSubmit)="createKey()" class="flex gap-3 items-end">
+            <label class="form-control flex-1">
+              <div class="label py-0.5"><span class="label-text text-xs">Key name</span></div>
+              <input type="text" formControlName="name" placeholder="e.g. CI/CD pipeline" class="input input-bordered input-sm" />
+            </label>
+            <button type="submit" class="btn btn-primary btn-sm" [disabled]="newKeyForm.invalid">Create</button>
+          </form>
+        </div>
+      </div>
+    }
+    <div class="card bg-base-100 border border-base-300 overflow-hidden">
+      <table class="table table-sm">
+        <thead><tr><th>Name</th><th>Prefix</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+        <tbody>
+          @for (k of apiKeys(); track k.id) {
+            <tr class="hover">
+              <td class="font-medium">{{ k.name }}</td>
+              <td class="font-mono text-xs">{{ k.prefix }}…</td>
+              <td class="text-xs text-base-content/60">{{ k.created_at | date:'mediumDate' }}</td>
+              <td class="text-xs text-base-content/60">{{ k.last_used ? (k.last_used | date:'short') : 'Never' }}</td>
+              <td class="text-right">
+                <button class="btn btn-ghost btn-xs text-error" (click)="revokeKey(k.id)">Revoke</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+<!-- Deactivate confirmation -->
+<app-confirm-modal id="deactivate-modal" title="Deactivate user"
+  message="This user will no longer be able to sign in. You can re-invite them later."
+  confirmLabel="Deactivate" [danger]="true" (confirmed)="deactivate()" />

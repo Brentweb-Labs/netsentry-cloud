@@ -1,66 +1,97 @@
-<div class="space-y-0">
+<div class="bg-[#07101f] -m-4 md:-m-6 min-h-[calc(100vh-4rem)]">
 
-  <!-- Toast Notification -->
+  <!-- ═══ Toast ═══════════════════════════════════════════════════════════════ -->
   <div *ngIf="toast.visible"
-       class="fixed bottom-6 right-6 z-50 flex items-start gap-3 px-5 py-4 rounded-lg shadow-lg text-sm font-medium transition-all duration-300"
-       [class]="toast.type === 'success' ? 'bg-green-600 text-white' : toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'">
-    <svg *ngIf="toast.type === 'success'" class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+       class="toast-enter fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium shadow-2xl border"
+       [class]="toast.type === 'success'
+         ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-300 backdrop-blur-sm'
+         : toast.type === 'error'
+         ? 'bg-red-950/90 border-red-500/30 text-red-300 backdrop-blur-sm'
+         : 'bg-sky-950/90 border-sky-500/30 text-sky-300 backdrop-blur-sm'">
+    <svg *ngIf="toast.type === 'success'" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
     </svg>
-    <svg *ngIf="toast.type === 'error'" class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg *ngIf="toast.type === 'error'" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
     </svg>
-    <svg *ngIf="toast.type === 'info'" class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg *ngIf="toast.type === 'info'" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
     </svg>
     {{ toast.message }}
   </div>
 
-  <!-- Page header -->
-  <div class="bg-white border-b border-gray-200 sticky top-0 z-40">
-    <div class="px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <h1 class="text-xl font-bold text-gray-900">IDPS Dashboard</h1>
+  <!-- ═══ Page Header ══════════════════════════════════════════════════════════ -->
+  <div class="bg-[#07101f]/95 backdrop-blur-sm border-b border-[#1a2d48] sticky top-0 z-40">
+    <div class="px-6 py-3.5 flex items-center justify-between gap-4 flex-wrap">
 
-        <!-- Pi-VPS connection badge -->
-        <div class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-             [class]="getConnectionStatusColor()">
-          <span class="w-1.5 h-1.5 rounded-full animate-pulse" [class]="getConnectionDotColor()"></span>
+      <!-- Left: title + badges -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-2.5">
+          <!-- Shield icon -->
+          <div class="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-sm font-bold text-slate-100 leading-none">NetSentry IDPS</h1>
+            <p class="text-[10px] text-slate-500 mt-0.5 leading-none">Intrusion Detection & Prevention</p>
+          </div>
+        </div>
+
+        <!-- Pi-VPS badge -->
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border"
+             [class]="connectionStatus?.status === 'connected'
+               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+               : connectionStatus?.status === 'degraded'
+               ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+               : connectionStatus?.status === 'disconnected'
+               ? 'bg-red-500/10 border-red-500/20 text-red-400'
+               : 'bg-slate-500/10 border-slate-500/20 text-slate-400'">
+          <span class="w-1.5 h-1.5 rounded-full"
+                [class]="connectionStatus?.status === 'connected' ? 'bg-emerald-400 live-dot'
+                  : connectionStatus?.status === 'degraded' ? 'bg-amber-400'
+                  : connectionStatus?.status === 'disconnected' ? 'bg-red-400'
+                  : 'bg-slate-500'"></span>
           Pi {{ connectionStatus?.status || 'unknown' }}
-          <span *ngIf="connectionStatus?.uptime_percentage as pct" class="opacity-75">
+          <span *ngIf="connectionStatus?.uptime_percentage as pct" class="opacity-60">
             · {{ pct.toFixed(0) }}%
           </span>
         </div>
 
         <!-- WebSocket badge -->
-        <div class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-             [class]="isWebSocketConnected ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'">
-          <span class="w-1.5 h-1.5 rounded-full" [class]="isWebSocketConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'"></span>
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border"
+             [class]="isWebSocketConnected
+               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+               : 'bg-slate-800/80 border-slate-700/50 text-slate-500'">
+          <span class="w-1.5 h-1.5 rounded-full"
+                [class]="isWebSocketConnected ? 'bg-emerald-400 live-dot' : 'bg-slate-600'"></span>
           {{ isWebSocketConnected ? 'Live' : 'Polling' }}
         </div>
       </div>
 
+      <!-- Right: controls -->
       <div class="flex items-center gap-2">
         <!-- Suricata controls -->
-        <div class="flex items-center gap-1 border border-gray-200 rounded-lg p-1">
+        <div class="flex items-center gap-px bg-[#0c1829] border border-[#1a2d48] rounded-lg p-0.5 overflow-hidden">
           <button (click)="startSuricata()" [disabled]="suricataStatus?.running"
-                  class="px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 rounded disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  class="px-3 py-1.5 text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
             Start
           </button>
-          <div class="w-px h-4 bg-gray-200"></div>
+          <div class="w-px h-4 bg-[#1a2d48]"></div>
           <button (click)="restartSuricata()"
-                  class="px-3 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-50 rounded transition-colors">
+                  class="px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 rounded-md transition-colors">
             Restart
           </button>
-          <div class="w-px h-4 bg-gray-200"></div>
+          <div class="w-px h-4 bg-[#1a2d48]"></div>
           <button (click)="stopSuricata()" [disabled]="!suricataStatus?.running"
-                  class="px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 rounded disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  class="px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
             Stop
           </button>
         </div>
 
         <button (click)="refreshData()"
-                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-200 bg-[#0c1829] hover:bg-[#0f1e35] border border-[#1a2d48] rounded-lg transition-colors">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
@@ -68,505 +99,484 @@
         </button>
 
         <button *ngIf="!isWebSocketConnected" (click)="reconnectWebSocket()"
-                class="px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors">
+                class="px-3 py-1.5 text-xs font-medium text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/20 rounded-lg transition-colors">
           Reconnect WS
         </button>
       </div>
     </div>
 
-    <!-- Tab navigation -->
-    <div class="px-6 flex gap-0">
+    <!-- Tab Navigation -->
+    <div class="px-6 flex gap-0 overflow-x-auto no-scrollbar">
       <button *ngFor="let tab of tabs"
               (click)="setTab(tab)"
-              class="px-5 py-3 text-sm font-medium border-b-2 transition-colors capitalize"
+              class="relative px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors capitalize shrink-0 tracking-wide"
               [class]="activeTab === tab
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'">
+                ? 'border-cyan-400 text-cyan-400'
+                : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-600'">
         <span *ngIf="tab === 'prevention' && blockedIps.length > 0" class="inline-flex items-center gap-1.5">
           Prevention
-          <span class="inline-flex items-center justify-center w-4 h-4 text-xs bg-red-100 text-red-800 rounded-full">{{ blockedIps.length }}</span>
+          <span class="inline-flex items-center justify-center w-4 h-4 text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 rounded-full">{{ blockedIps.length }}</span>
         </span>
         <span *ngIf="!(tab === 'prevention' && blockedIps.length > 0)">{{ tab }}</span>
       </button>
     </div>
   </div>
 
-  <div class="p-6 space-y-6">
+  <!-- ═══ Main Content ══════════════════════════════════════════════════════════ -->
+  <div class="p-6 space-y-5">
 
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!--  OVERVIEW TAB                                                          -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
+    <!--  OVERVIEW TAB                                                             -->
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
     <ng-container *ngIf="activeTab === 'overview'">
+      <div class="tab-content space-y-5">
 
-      <!-- Stat cards -->
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <!-- Stat Cards Row -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
 
-        <!-- Raspi-VPS Link -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Pi-VPS Link</p>
-          <p class="mt-1 text-2xl font-bold capitalize"
-             [class]="connectionStatus?.status === 'connected' ? 'text-green-600' : connectionStatus?.status === 'disconnected' ? 'text-red-600' : connectionStatus?.status === 'degraded' ? 'text-yellow-600' : 'text-gray-600'">
-            {{ connectionStatus?.status || '—' }}
-          </p>
-          <p class="mt-1 text-xs text-gray-500">{{ getConnectionQuality() }} · {{ formatResponseTime(connectionStatus?.response_time_last_check || 0) }}</p>
-          <div class="mt-3 flex justify-between text-xs text-gray-500">
-            <span>Uptime</span>
-            <span class="font-medium text-gray-700">{{ (connectionStatus?.uptime_percentage || 0).toFixed(1) }}%</span>
-          </div>
-          <div class="mt-1 w-full bg-gray-100 rounded-full h-1">
-            <div class="h-1 rounded-full bg-green-500" [style.width.%]="connectionStatus?.uptime_percentage || 0"></div>
-          </div>
-        </div>
-
-        <!-- Suricata Status -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Suricata</p>
-          <p class="mt-1 text-2xl font-bold capitalize"
-             [class]="suricataStatus?.status === 'running' ? 'text-green-600' : 'text-red-500'">
-            {{ suricataStatus?.status || '—' }}
-          </p>
-          <p class="mt-1 text-xs text-gray-500">{{ suricataStatus?.stats?.events_processed || 0 | number }} total events</p>
-          <div class="mt-3 grid grid-cols-2 gap-1 text-xs text-gray-500">
-            <span>CPU</span><span class="font-medium text-gray-700 text-right">{{ suricataStatus?.stats?.cpu_usage?.toFixed(1) || 0 }}%</span>
-            <span>Mem</span><span class="font-medium text-gray-700 text-right">{{ suricataStatus?.stats?.memory_usage?.toFixed(1) || 0 }}%</span>
-          </div>
-        </div>
-
-        <!-- Alerts/Hour -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Alerts / Hour</p>
-          <p class="mt-1 text-2xl font-bold text-orange-500">{{ systemMetrics?.alerts_per_hour || 0 | number }}</p>
-          <p class="mt-1 text-xs text-gray-500">{{ systemMetrics?.events_processed || 0 | number }} total events (1h)</p>
-          <div class="mt-3 grid grid-cols-2 gap-1 text-xs text-gray-500">
-            <span>DNS</span><span class="font-medium text-gray-700 text-right">{{ systemMetrics?.dns_requests || 0 | number }}</span>
-            <span>HTTP</span><span class="font-medium text-gray-700 text-right">{{ systemMetrics?.http_requests || 0 | number }}</span>
-          </div>
-        </div>
-
-        <!-- Total Alerts -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Alerts</p>
-          <p class="mt-1 text-2xl font-bold text-red-600">{{ alertStats?.total || 0 | number }}</p>
-          <p class="mt-1 text-xs text-gray-500">{{ alertStats?.critical || 0 }} critical · {{ alertStats?.high || 0 }} high</p>
-          <div class="mt-3 grid grid-cols-2 gap-1 text-xs text-gray-500">
-            <span>Medium</span><span class="font-medium text-gray-700 text-right">{{ alertStats?.medium || 0 }}</span>
-            <span>Low</span><span class="font-medium text-gray-700 text-right">{{ alertStats?.low || 0 }}</span>
-          </div>
-        </div>
-
-        <!-- Blocked IPs -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5 cursor-pointer hover:border-blue-300 transition-colors"
-             (click)="activeTab = 'prevention'">
-          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Blocked IPs</p>
-          <p class="mt-1 text-2xl font-bold text-blue-600">{{ blockedIps.length }}</p>
-          <p class="mt-1 text-xs text-gray-500">
-            Auto-block:
-            <span [class]="(autoBlockSettings?.enabled || detectionSettings?.auto_block_enabled) ? 'text-green-600 font-medium' : 'text-gray-500'">
-              {{ (autoBlockSettings?.enabled || detectionSettings?.auto_block_enabled) ? 'on' : 'off' }}
-            </span>
-          </p>
-          <p class="mt-3 text-xs text-blue-600 font-medium">View prevention →</p>
-        </div>
-      </div>
-
-      <!-- Main grid: alerts feed + network intel + metrics -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- Live Alerts feed -->
-        <div class="lg:col-span-2 bg-white rounded-lg border border-gray-200">
-          <div class="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-gray-900">Real-time Alerts</h2>
-            <span *ngIf="isWebSocketConnected" class="flex items-center gap-1 text-xs text-green-600">
-              <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Live
-            </span>
-          </div>
-          <div class="divide-y divide-gray-50 max-h-80 overflow-y-auto">
-            <div *ngFor="let alert of realtimeAlerts.slice(0, 10)"
-                 class="px-5 py-3 flex items-start gap-3 hover:bg-gray-50">
-              <span class="mt-0.5 px-2 py-0.5 text-xs font-medium rounded-full shrink-0"
-                    [class]="getAlertSeverityBadge(alert.severity)">
-                {{ alert.severity }}
-              </span>
-              <div class="min-w-0 flex-1">
-                <p class="text-xs font-medium text-gray-900 truncate">{{ alert.message }}</p>
-                <p class="text-xs text-gray-500 mt-0.5 font-mono">
-                  {{ alert.src_ip }} → {{ alert.dest_ip }}
-                  <span *ngIf="alert.category" class="ml-2 text-gray-400">{{ alert.category }}</span>
-                </p>
-              </div>
-              <span class="text-xs text-gray-400 shrink-0">{{ formatTimestamp(alert.timestamp) }}</span>
-            </div>
-            <div *ngIf="realtimeAlerts.length === 0" class="px-5 py-10 text-center text-sm text-gray-400">
-              No alerts yet — monitoring network traffic
-            </div>
-          </div>
-        </div>
-
-        <!-- System metrics -->
-        <div class="bg-white rounded-lg border border-gray-200">
-          <div class="p-5 border-b border-gray-100">
-            <h2 class="text-sm font-semibold text-gray-900">System Metrics</h2>
-          </div>
-          <div class="p-5 space-y-5">
-            <div>
-              <div class="flex justify-between text-xs mb-1.5">
-                <span class="text-gray-500">CPU</span>
-                <span class="font-medium text-gray-900">{{ systemMetrics?.cpu_current?.toFixed(1) || 0 }}%</span>
-              </div>
-              <div class="w-full bg-gray-100 rounded-full h-2">
-                <div class="h-2 rounded-full transition-all duration-500"
-                     [class]="(systemMetrics?.cpu_current || 0) > 80 ? 'bg-red-500' : (systemMetrics?.cpu_current || 0) > 60 ? 'bg-yellow-500' : 'bg-blue-500'"
-                     [style.width.%]="systemMetrics?.cpu_current || 0"></div>
-              </div>
-            </div>
-            <div>
-              <div class="flex justify-between text-xs mb-1.5">
-                <span class="text-gray-500">Memory</span>
-                <span class="font-medium text-gray-900">{{ systemMetrics?.memory_current?.toFixed(1) || 0 }}%</span>
-              </div>
-              <div class="w-full bg-gray-100 rounded-full h-2">
-                <div class="h-2 rounded-full transition-all duration-500"
-                     [class]="(systemMetrics?.memory_current || 0) > 80 ? 'bg-red-500' : (systemMetrics?.memory_current || 0) > 60 ? 'bg-yellow-500' : 'bg-green-500'"
-                     [style.width.%]="systemMetrics?.memory_current || 0"></div>
-              </div>
-            </div>
-
-            <div class="pt-4 border-t border-gray-100">
-              <p class="text-xs font-medium text-gray-500 mb-3">Event Types (1h)</p>
-              <div class="space-y-2">
-                <div *ngFor="let s of getEventTypeStats()" class="flex items-center justify-between text-xs">
-                  <span class="px-2 py-0.5 rounded-full font-medium" [class]="getEventTypeColor(s.type)">{{ s.type }}</span>
-                  <span class="text-gray-600 font-medium">{{ s.count }}</span>
+          <!-- Pi-VPS Link -->
+          <div class="stat-card card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl p-4 overflow-hidden relative">
+            <div class="absolute left-0 inset-y-0 w-0.5 rounded-l-xl"
+                 [class]="connectionStatus?.status === 'connected' ? 'bg-emerald-400'
+                   : connectionStatus?.status === 'degraded' ? 'bg-amber-400'
+                   : connectionStatus?.status === 'disconnected' ? 'bg-red-400'
+                   : 'bg-slate-600'"></div>
+            <div class="pl-2">
+              <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Pi-VPS Link</p>
+              <p class="mt-1.5 text-2xl font-bold capitalize leading-none"
+                 [class]="connectionStatus?.status === 'connected' ? 'text-emerald-400'
+                   : connectionStatus?.status === 'disconnected' ? 'text-red-400'
+                   : connectionStatus?.status === 'degraded' ? 'text-amber-400'
+                   : 'text-slate-400'">
+                {{ connectionStatus?.status || '—' }}
+              </p>
+              <p class="mt-1 text-[11px] text-slate-500">{{ getConnectionQuality() }} · {{ formatResponseTime(connectionStatus?.response_time_last_check || 0) }}</p>
+              <div class="mt-3">
+                <div class="flex justify-between text-[10px] text-slate-600 mb-1">
+                  <span>Uptime</span>
+                  <span class="text-slate-300 font-medium">{{ (connectionStatus?.uptime_percentage || 0).toFixed(1) }}%</span>
                 </div>
-                <div *ngIf="getEventTypeStats().length === 0" class="text-gray-400 text-xs">No data</div>
+                <div class="h-1 bg-[#1a2d48] rounded-full">
+                  <div class="h-1 rounded-full progress-fill"
+                       [class]="connectionStatus?.status === 'connected' ? 'bg-emerald-400' : 'bg-amber-400'"
+                       [style.width.%]="connectionStatus?.uptime_percentage || 0"></div>
+                </div>
               </div>
             </div>
+          </div>
 
-            <div class="pt-4 border-t border-gray-100">
-              <p class="text-xs font-medium text-gray-500 mb-3">Top Source IPs</p>
-              <div class="space-y-1.5">
-                <div *ngFor="let ip of getTopSourceIPs()" class="flex items-center justify-between text-xs">
-                  <span class="font-mono text-gray-700"
-                        [class.text-red-600]="isBlockedIp(ip.address)"
-                        [class.font-bold]="isBlockedIp(ip.address)">
-                    {{ ip.address }}
-                    <span *ngIf="isBlockedIp(ip.address)" class="ml-1 text-red-500">●</span>
+          <!-- Suricata -->
+          <div class="stat-card card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl p-4 overflow-hidden relative">
+            <div class="absolute left-0 inset-y-0 w-0.5 rounded-l-xl"
+                 [class]="suricataStatus?.running ? 'bg-cyan-400' : 'bg-red-400'"></div>
+            <div class="pl-2">
+              <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Suricata</p>
+              <p class="mt-1.5 text-2xl font-bold capitalize leading-none"
+                 [class]="suricataStatus?.status === 'running' ? 'text-cyan-400' : 'text-red-400'">
+                {{ suricataStatus?.status || '—' }}
+              </p>
+              <p class="mt-1 text-[11px] text-slate-500">{{ suricataStatus?.stats?.events_processed || 0 | number }} events total</p>
+              <div class="mt-3 grid grid-cols-2 gap-1">
+                <div class="bg-[#0a1225] rounded-lg px-2 py-1.5 text-center">
+                  <p class="text-[10px] text-slate-600">CPU</p>
+                  <p class="text-xs font-bold text-slate-300">{{ suricataStatus?.stats?.cpu_usage?.toFixed(0) || 0 }}%</p>
+                </div>
+                <div class="bg-[#0a1225] rounded-lg px-2 py-1.5 text-center">
+                  <p class="text-[10px] text-slate-600">Mem</p>
+                  <p class="text-xs font-bold text-slate-300">{{ suricataStatus?.stats?.memory_usage?.toFixed(0) || 0 }}%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alerts/Hour -->
+          <div class="stat-card card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl p-4 overflow-hidden relative">
+            <div class="absolute left-0 inset-y-0 w-0.5 rounded-l-xl bg-orange-400"></div>
+            <div class="pl-2">
+              <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Alerts / Hour</p>
+              <p class="mt-1.5 text-2xl font-bold text-orange-400 leading-none">{{ systemMetrics?.alerts_per_hour || 0 | number }}</p>
+              <p class="mt-1 text-[11px] text-slate-500">{{ systemMetrics?.events_processed || 0 | number }} events (1h)</p>
+              <div class="mt-3 grid grid-cols-2 gap-1">
+                <div class="bg-[#0a1225] rounded-lg px-2 py-1.5 text-center">
+                  <p class="text-[10px] text-slate-600">DNS</p>
+                  <p class="text-xs font-bold text-slate-300">{{ systemMetrics?.dns_requests || 0 | number }}</p>
+                </div>
+                <div class="bg-[#0a1225] rounded-lg px-2 py-1.5 text-center">
+                  <p class="text-[10px] text-slate-600">HTTP</p>
+                  <p class="text-xs font-bold text-slate-300">{{ systemMetrics?.http_requests || 0 | number }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Alerts -->
+          <div class="stat-card card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl p-4 overflow-hidden relative">
+            <div class="absolute left-0 inset-y-0 w-0.5 rounded-l-xl bg-red-400"></div>
+            <div class="pl-2">
+              <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Total Alerts</p>
+              <p class="mt-1.5 text-2xl font-bold text-red-400 leading-none">{{ alertStats?.total || 0 | number }}</p>
+              <p class="mt-1 text-[11px] text-slate-500">{{ alertStats?.critical || 0 }} critical · {{ alertStats?.high || 0 }} high</p>
+              <div class="mt-3 grid grid-cols-2 gap-1">
+                <div class="bg-[#0a1225] rounded-lg px-2 py-1.5 text-center">
+                  <p class="text-[10px] text-slate-600">Med</p>
+                  <p class="text-xs font-bold text-slate-300">{{ alertStats?.medium || 0 }}</p>
+                </div>
+                <div class="bg-[#0a1225] rounded-lg px-2 py-1.5 text-center">
+                  <p class="text-[10px] text-slate-600">Low</p>
+                  <p class="text-xs font-bold text-slate-300">{{ alertStats?.low || 0 }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Blocked IPs -->
+          <div class="stat-card card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl p-4 overflow-hidden relative cursor-pointer"
+               (click)="activeTab = 'prevention'">
+            <div class="absolute left-0 inset-y-0 w-0.5 rounded-l-xl bg-blue-400"></div>
+            <div class="pl-2">
+              <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Blocked IPs</p>
+              <p class="mt-1.5 text-2xl font-bold text-blue-400 leading-none">{{ blockedIps.length }}</p>
+              <p class="mt-1 text-[11px] text-slate-500">
+                Auto-block:
+                <span [class]="(autoBlockSettings?.enabled || detectionSettings?.auto_block_enabled) ? 'text-emerald-400 font-semibold' : 'text-slate-600'">
+                  {{ (autoBlockSettings?.enabled || detectionSettings?.auto_block_enabled) ? 'on' : 'off' }}
+                </span>
+              </p>
+              <p class="mt-3 text-[11px] text-cyan-400 font-semibold flex items-center gap-1">
+                View prevention
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                </svg>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Grid: Alerts + System Metrics -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          <!-- Live Alerts Feed -->
+          <div class="lg:col-span-2 card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#1a2d48] flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-slate-200">Real-time Alerts</h2>
+                <span *ngIf="isWebSocketConnected" class="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+                  <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full live-dot"></span>
+                  Live
+                </span>
+              </div>
+              <span class="text-[11px] text-slate-600">Last {{ realtimeAlerts.length }} alerts</span>
+            </div>
+            <div class="divide-y divide-[#111e33] max-h-72 overflow-y-auto dark-scroll">
+              <div *ngFor="let alert of realtimeAlerts.slice(0, 12)"
+                   class="table-row-hover px-5 py-2.5 flex items-start gap-3"
+                   [class]="alert.severity === 'critical' ? 'alert-row-critical'
+                     : alert.severity === 'high' ? 'alert-row-high'
+                     : alert.severity === 'medium' ? 'alert-row-medium'
+                     : 'alert-row-low'">
+                <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded uppercase tracking-wide shrink-0"
+                      [class]="alert.severity === 'critical' ? 'bg-red-500/15 text-red-400 border border-red-500/20'
+                        : alert.severity === 'high' ? 'bg-orange-500/15 text-orange-400 border border-orange-500/20'
+                        : alert.severity === 'medium' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                        : 'bg-blue-500/15 text-blue-400 border border-blue-500/20'">
+                  {{ alert.severity }}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs font-medium text-slate-200 truncate">{{ alert.message }}</p>
+                  <p class="text-[11px] text-slate-500 mt-0.5 font-mono">
+                    {{ alert.src_ip }} → {{ alert.dest_ip }}
+                    <span *ngIf="alert.category" class="ml-2 text-slate-600">{{ alert.category }}</span>
+                  </p>
+                </div>
+                <span class="text-[11px] text-slate-600 shrink-0 font-mono">{{ formatTimestamp(alert.timestamp) }}</span>
+              </div>
+              <div *ngIf="realtimeAlerts.length === 0"
+                   class="px-5 py-10 text-center">
+                <svg class="w-8 h-8 text-slate-700 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+                </svg>
+                <p class="text-sm text-slate-600">No alerts — network is clean</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- System Metrics -->
+          <div class="card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#1a2d48]">
+              <h2 class="text-sm font-semibold text-slate-200">System Metrics</h2>
+            </div>
+            <div class="p-5 space-y-4">
+              <!-- CPU -->
+              <div>
+                <div class="flex justify-between text-xs mb-2">
+                  <span class="text-slate-500">CPU Usage</span>
+                  <span class="font-bold"
+                        [class]="(systemMetrics?.cpu_current || 0) > 80 ? 'text-red-400'
+                          : (systemMetrics?.cpu_current || 0) > 60 ? 'text-amber-400'
+                          : 'text-slate-200'">
+                    {{ systemMetrics?.cpu_current?.toFixed(1) || 0 }}%
                   </span>
-                  <span class="text-gray-500">{{ ip.count }} events</span>
+                </div>
+                <div class="h-1.5 bg-[#1a2d48] rounded-full">
+                  <div class="h-1.5 rounded-full progress-fill"
+                       [class]="(systemMetrics?.cpu_current || 0) > 80 ? 'bg-red-400'
+                         : (systemMetrics?.cpu_current || 0) > 60 ? 'bg-amber-400'
+                         : 'bg-cyan-400'"
+                       [style.width.%]="systemMetrics?.cpu_current || 0"></div>
+                </div>
+              </div>
+              <!-- Memory -->
+              <div>
+                <div class="flex justify-between text-xs mb-2">
+                  <span class="text-slate-500">Memory</span>
+                  <span class="font-bold"
+                        [class]="(systemMetrics?.memory_current || 0) > 80 ? 'text-red-400'
+                          : (systemMetrics?.memory_current || 0) > 60 ? 'text-amber-400'
+                          : 'text-slate-200'">
+                    {{ systemMetrics?.memory_current?.toFixed(1) || 0 }}%
+                  </span>
+                </div>
+                <div class="h-1.5 bg-[#1a2d48] rounded-full">
+                  <div class="h-1.5 rounded-full progress-fill"
+                       [class]="(systemMetrics?.memory_current || 0) > 80 ? 'bg-red-400'
+                         : (systemMetrics?.memory_current || 0) > 60 ? 'bg-amber-400'
+                         : 'bg-emerald-400'"
+                       [style.width.%]="systemMetrics?.memory_current || 0"></div>
+                </div>
+              </div>
+
+              <!-- Event Types -->
+              <div class="pt-3 border-t border-[#1a2d48]">
+                <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2.5">Event Types (1h)</p>
+                <div class="space-y-1.5">
+                  <div *ngFor="let s of getEventTypeStats()" class="flex items-center justify-between">
+                    <span class="text-xs px-2 py-0.5 rounded font-medium"
+                          [class]="getEventTypeColor(s.type)">{{ s.type }}</span>
+                    <span class="text-xs font-semibold text-slate-300 font-mono">{{ s.count }}</span>
+                  </div>
+                  <div *ngIf="getEventTypeStats().length === 0" class="text-[11px] text-slate-600">No data</div>
+                </div>
+              </div>
+
+              <!-- Top Source IPs -->
+              <div class="pt-3 border-t border-[#1a2d48]">
+                <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2.5">Top Source IPs</p>
+                <div class="space-y-1.5">
+                  <div *ngFor="let ip of getTopSourceIPs()" class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] font-mono truncate"
+                          [class]="isBlockedIp(ip.address) ? 'text-red-400 font-bold' : 'text-slate-300'">
+                      <span *ngIf="isBlockedIp(ip.address)" class="blocked-dot inline-block w-1.5 h-1.5 bg-red-400 rounded-full mr-1.5"></span>{{ ip.address }}
+                    </span>
+                    <span class="text-[11px] text-slate-600 shrink-0 font-mono">{{ ip.count }}</span>
+                  </div>
+                  <div *ngIf="getTopSourceIPs().length === 0" class="text-[11px] text-slate-600">No data</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Alert severity breakdown -->
-      <div class="bg-white rounded-lg border border-gray-200 p-5">
-        <h2 class="text-sm font-semibold text-gray-900 mb-4">Alert Severity Breakdown</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div class="text-center">
-            <p class="text-3xl font-bold text-red-600">{{ alertStats?.critical || 0 }}</p>
-            <p class="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Critical</p>
+        <!-- Second Row: Severity Breakdown + Threat Intel + Network Topology -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          <!-- Alert Severity Breakdown -->
+          <div class="card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl p-5">
+            <h2 class="text-sm font-semibold text-slate-200 mb-4">Severity Breakdown</h2>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-[#0a1225] rounded-xl p-4 text-center">
+                <p class="text-3xl font-bold text-red-400">{{ alertStats?.critical || 0 }}</p>
+                <p class="text-[10px] text-red-500/70 mt-1 uppercase tracking-widest font-semibold">Critical</p>
+              </div>
+              <div class="bg-[#0a1225] rounded-xl p-4 text-center">
+                <p class="text-3xl font-bold text-orange-400">{{ alertStats?.high || 0 }}</p>
+                <p class="text-[10px] text-orange-500/70 mt-1 uppercase tracking-widest font-semibold">High</p>
+              </div>
+              <div class="bg-[#0a1225] rounded-xl p-4 text-center">
+                <p class="text-3xl font-bold text-amber-400">{{ alertStats?.medium || 0 }}</p>
+                <p class="text-[10px] text-amber-500/70 mt-1 uppercase tracking-widest font-semibold">Medium</p>
+              </div>
+              <div class="bg-[#0a1225] rounded-xl p-4 text-center">
+                <p class="text-3xl font-bold text-blue-400">{{ alertStats?.low || 0 }}</p>
+                <p class="text-[10px] text-blue-500/70 mt-1 uppercase tracking-widest font-semibold">Low</p>
+              </div>
+            </div>
           </div>
-          <div class="text-center">
-            <p class="text-3xl font-bold text-orange-500">{{ alertStats?.high || 0 }}</p>
-            <p class="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">High</p>
+
+          <!-- Threat Intelligence -->
+          <div class="card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-6 h-6 rounded-md bg-red-500/10 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                </svg>
+              </div>
+              <h2 class="text-sm font-semibold text-slate-200">Threat Intelligence</h2>
+            </div>
+            <div *ngIf="threatIntel" class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-[#0a1225] rounded-lg p-3">
+                  <p class="text-[10px] text-slate-600 uppercase tracking-widest">Malicious IPs</p>
+                  <p class="text-xl font-bold text-red-400 mt-1">{{ threatIntel.malicious_ips?.length || 0 }}</p>
+                </div>
+                <div class="bg-[#0a1225] rounded-lg p-3">
+                  <p class="text-[10px] text-slate-600 uppercase tracking-widest">Suspicious Domains</p>
+                  <p class="text-xl font-bold text-orange-400 mt-1">{{ threatIntel.suspicious_domains?.length || 0 }}</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-[#0a1225] rounded-lg p-3">
+                  <p class="text-[10px] text-slate-600 uppercase tracking-widest">Unique IPs</p>
+                  <p class="text-xl font-bold text-cyan-400 mt-1">{{ threatIntel.unique_ips_count || 0 }}</p>
+                </div>
+                <div class="bg-[#0a1225] rounded-lg p-3">
+                  <p class="text-[10px] text-slate-600 uppercase tracking-widest">Vulnerabilities</p>
+                  <p class="text-xl font-bold text-amber-400 mt-1">{{ threatIntel.vulnerabilities?.length || 0 }}</p>
+                </div>
+              </div>
+              <div *ngIf="threatIntel.vulnerabilities.length" class="pt-2 border-t border-[#1a2d48]">
+                <p class="text-[10px] text-slate-600 uppercase tracking-widest mb-2">Recent Vulnerabilities</p>
+                <div class="space-y-1.5 max-h-28 overflow-y-auto dark-scroll">
+                  <div *ngFor="let v of threatIntel.vulnerabilities.slice(0,3)"
+                       class="flex items-start gap-2 text-[11px]">
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 uppercase"
+                          [class]="v.severity === 'critical' ? 'bg-red-500/15 text-red-400'
+                            : v.severity === 'high' ? 'bg-orange-500/15 text-orange-400'
+                            : 'bg-amber-500/15 text-amber-400'">{{ v.severity }}</span>
+                    <span class="text-slate-400 truncate">{{ v.description }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="!threatIntel" class="flex items-center justify-center h-24">
+              <p class="text-sm text-slate-600">Loading threat data…</p>
+            </div>
           </div>
-          <div class="text-center">
-            <p class="text-3xl font-bold text-yellow-500">{{ alertStats?.medium || 0 }}</p>
-            <p class="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Medium</p>
-          </div>
-          <div class="text-center">
-            <p class="text-3xl font-bold text-blue-500">{{ alertStats?.low || 0 }}</p>
-            <p class="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Low</p>
+
+          <!-- Network Topology -->
+          <div class="card-hover bg-[#0c1829] border border-[#1a2d48] rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-6 h-6 rounded-md bg-cyan-500/10 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"/>
+                </svg>
+              </div>
+              <h2 class="text-sm font-semibold text-slate-200">Network Topology</h2>
+            </div>
+            <div *ngIf="networkTopology" class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-[#0a1225] rounded-lg p-3">
+                  <p class="text-[10px] text-slate-600 uppercase tracking-widest">Active Nodes</p>
+                  <p class="text-xl font-bold text-emerald-400 mt-1">{{ networkTopology.active_nodes || 0 }}</p>
+                </div>
+                <div class="bg-[#0a1225] rounded-lg p-3">
+                  <p class="text-[10px] text-slate-600 uppercase tracking-widest">Connections</p>
+                  <p class="text-xl font-bold text-cyan-400 mt-1">{{ networkTopology.total_connections || 0 }}</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-[#0a1225] rounded-lg p-3">
+                  <p class="text-[10px] text-slate-600 uppercase tracking-widest">Monitored Ports</p>
+                  <p class="text-xl font-bold text-blue-400 mt-1">{{ networkTopology.monitored_ports || 0 }}</p>
+                </div>
+                <div class="bg-[#0a1225] rounded-lg p-3">
+                  <p class="text-[10px] text-slate-600 uppercase tracking-widest">Unique IPs Seen</p>
+                  <p class="text-xl font-bold text-purple-400 mt-1">{{ networkTopology.unique_ips.length || 0 }}</p>
+                </div>
+              </div>
+              <div class="pt-2 border-t border-[#1a2d48]">
+                <div class="flex justify-between text-xs">
+                  <span class="text-slate-500">Total events processed</span>
+                  <span class="font-bold text-slate-200 font-mono">{{ networkTopology.total_events || 0 | number }}</span>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="!networkTopology" class="flex items-center justify-center h-24">
+              <p class="text-sm text-slate-600">Loading topology…</p>
+            </div>
           </div>
         </div>
-      </div>
 
+      </div>
     </ng-container>
 
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!--  EVENTS TAB                                                            -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
+    <!--  EVENTS TAB                                                               -->
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
     <ng-container *ngIf="activeTab === 'events'">
+      <div class="tab-content space-y-5">
 
-      <!-- Anomaly Detection Events -->
-      <div class="bg-white rounded-lg border border-gray-200">
-        <div class="p-5 border-b border-gray-100 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-            </svg>
-            <h2 class="text-sm font-semibold text-gray-900">Anomaly Detection Events</h2>
-            <span class="text-xs text-gray-400">(last hour)</span>
-          </div>
-          <button (click)="loadDetectionEvents()"
-                  class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
-            <svg class="w-3 h-3" [class.animate-spin]="detectionEventsLoading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            Refresh
-          </button>
-        </div>
-
-        <div *ngIf="detectionEventsLoading && detectionEvents.length === 0"
-             class="py-12 text-center text-sm text-gray-400">Loading…</div>
-
-        <div *ngIf="!detectionEventsLoading && detectionEvents.length === 0"
-             class="py-12 text-center text-sm text-gray-400">No anomaly events in the last hour</div>
-
-        <div *ngIf="detectionEvents.length > 0" class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-100">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source IP</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pattern</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target Path</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requests</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detected</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              <tr *ngFor="let ev of detectionEvents" class="hover:bg-gray-50">
-                <td class="px-4 py-3 text-xs font-mono font-medium text-gray-900">
-                  {{ ev.src_ip }}
-                  <span *ngIf="isBlockedIp(ev.src_ip)" class="ml-1 text-red-500 text-xs">● blocked</span>
-                </td>
-                <td class="px-4 py-3 text-xs">
-                  <span class="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-medium">{{ ev.detected_pattern }}</span>
-                </td>
-                <td class="px-4 py-3 text-xs font-mono text-gray-700">{{ ev.path }}</td>
-                <td class="px-4 py-3 text-xs text-gray-700">{{ ev.request_count }} / {{ ev.window_seconds }}s</td>
-                <td class="px-4 py-3 text-xs">
-                  <span *ngIf="ev.triggered_block" class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Blocked</span>
-                  <span *ngIf="!ev.triggered_block" class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Alert only</span>
-                </td>
-                <td class="px-4 py-3 text-xs text-gray-500">{{ formatTimestamp(ev.timestamp) }}</td>
-                <td class="px-4 py-3 text-xs">
-                  <button *ngIf="!isBlockedIp(ev.src_ip)"
-                          (click)="blockIpFromEvent({ src_ip: ev.src_ip, event_type: 'alert', timestamp: ev.timestamp, alert: { signature: ev.detected_pattern } })"
-                          class="px-2.5 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
-                    Block
-                  </button>
-                  <button *ngIf="isBlockedIp(ev.src_ip)"
-                          (click)="unblockIp(ev.src_ip)"
-                          [disabled]="unblockLoading.has(ev.src_ip)"
-                          class="px-2.5 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors">
-                    Unblock
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Recent Suricata Events -->
-      <div class="bg-white rounded-lg border border-gray-200">
-        <div class="p-5 border-b border-gray-100 flex flex-wrap items-center gap-3">
-          <h2 class="text-sm font-semibold text-gray-900 mr-auto">Recent Suricata Events</h2>
-          <div class="relative">
-            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z"/>
-            </svg>
-            <input type="text" [(ngModel)]="eventSearch"
-                   placeholder="IP, domain, signature…"
-                   class="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-52"/>
-          </div>
-          <select [(ngModel)]="eventTypeFilter"
-                  class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            <option value="">All types</option>
-            <option *ngFor="let t of eventTypes" [value]="t">{{ t }}</option>
-          </select>
-          <button *ngIf="eventSearch || eventTypeFilter"
-                  (click)="eventSearch = ''; eventTypeFilter = ''"
-                  class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100">
-            Clear
-          </button>
-        </div>
-
-        <div *ngIf="loading.events" class="py-12 text-center text-sm text-gray-400">Loading events…</div>
-
-        <div *ngIf="!loading.events && filteredEvents.length === 0"
-             class="py-12 text-center text-sm text-gray-400">No events</div>
-
-        <div *ngIf="filteredEvents.length > 0" class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-100">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destination</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Host / Domain</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              <tr *ngFor="let ev of filteredEvents.slice(0, 50)" class="hover:bg-gray-50">
-                <td class="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">{{ formatTimestamp(ev.timestamp) }}</td>
-                <td class="px-4 py-2.5 text-xs whitespace-nowrap">
-                  <span class="px-2 py-0.5 rounded-full font-medium text-xs" [class]="getEventTypeColor(ev.event_type)">{{ ev.event_type }}</span>
-                </td>
-                <td class="px-4 py-2.5 text-xs whitespace-nowrap">
-                  <span class="font-mono"
-                        [class.text-red-600]="isBlockedIp(ev.src_ip)"
-                        [class.font-bold]="isBlockedIp(ev.src_ip)">
-                    {{ ev.src_ip || '—' }}
-                  </span>
-                  <span *ngIf="ev.src_port" class="text-gray-400">:{{ ev.src_port }}</span>
-                </td>
-                <td class="px-4 py-2.5 text-xs whitespace-nowrap">
-                  <span class="font-mono text-gray-700">{{ ev.dest_ip || '—' }}</span>
-                  <span *ngIf="ev.dest_port" class="text-gray-400">:{{ ev.dest_port }}</span>
-                </td>
-                <td class="px-4 py-2.5 text-xs max-w-xs">
-                  <span *ngIf="getEventHost(ev)" class="font-medium text-gray-800 truncate block"
-                        [class.text-blue-600]="ev.event_type === 'dns'"
-                        [class.text-green-700]="ev.event_type === 'http'">
-                    {{ getEventHost(ev) }}
-                  </span>
-                  <span *ngIf="!getEventHost(ev)" class="text-gray-300">—</span>
-                </td>
-                <td class="px-4 py-2.5 text-xs space-y-0.5">
-                  <div *ngIf="ev.alert" [class]="getSeverityColor(ev.alert.severity || 4)">
-                    {{ ev.alert.signature || 'Unknown signature' }}
-                    <span *ngIf="ev.alert.signature_id" class="text-gray-400 font-normal"> (SID: {{ ev.alert.signature_id }})</span>
-                  </div>
-                  <div *ngIf="hasDnsQuery(ev)" class="text-blue-600">DNS: {{ getDnsRrname(ev) }}</div>
-                  <div *ngIf="hasHttpHostname(ev)" class="text-green-600">
-                    {{ ev.http?.http_method }} {{ getHttpHostname(ev) }}{{ ev.http?.url || '' }}
-                    <span *ngIf="ev.http?.status" class="text-gray-400"> {{ ev.http?.status }}</span>
-                  </div>
-                  <div *ngIf="ev.proto" class="text-gray-400">{{ ev.proto }}<span *ngIf="ev.in_iface"> · {{ ev.in_iface }}</span></div>
-                </td>
-                <td class="px-4 py-2.5 text-xs whitespace-nowrap">
-                  <button *ngIf="ev.src_ip && ev.event_type === 'alert' && !isBlockedIp(ev.src_ip)"
-                          (click)="blockIpFromEvent(ev)"
-                          class="px-2.5 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
-                    Block
-                  </button>
-                  <span *ngIf="isBlockedIp(ev.src_ip)" class="text-red-500 font-medium">● Blocked</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p *ngIf="filteredEvents.length > 50" class="px-4 py-3 text-xs text-gray-400 border-t border-gray-100">
-            Showing 50 of {{ filteredEvents.length }} events
-          </p>
-        </div>
-      </div>
-
-    </ng-container>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!--  PREVENTION TAB                                                        -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <ng-container *ngIf="activeTab === 'prevention'">
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- Block IP form -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <h2 class="text-sm font-semibold text-gray-900 mb-4">Block IP / CIDR</h2>
-          <div class="space-y-3">
-            <div>
-              <label class="text-xs font-medium text-gray-600 block mb-1">IP Address or CIDR range</label>
-              <input type="text" [(ngModel)]="blockForm.ip"
-                     placeholder="e.g. 1.2.3.4 or 10.0.0.0/8"
-                     class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+        <!-- Anomaly Detection Events -->
+        <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-[#1a2d48] flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-6 h-6 rounded-md bg-orange-500/10 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                </svg>
+              </div>
+              <h2 class="text-sm font-semibold text-slate-200">Anomaly Detection Events</h2>
+              <span class="text-[11px] text-slate-600">(last hour)</span>
             </div>
-            <div>
-              <label class="text-xs font-medium text-gray-600 block mb-1">Reason</label>
-              <input type="text" [(ngModel)]="blockForm.reason"
-                     placeholder="e.g. Brute-force attempt"
-                     class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-            </div>
-            <div>
-              <label class="text-xs font-medium text-gray-600 block mb-1">Duration</label>
-              <select [(ngModel)]="blockForm.durationHours"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option [ngValue]="1">1 Hour</option>
-                <option [ngValue]="6">6 Hours</option>
-                <option [ngValue]="24">24 Hours</option>
-                <option [ngValue]="72">3 Days</option>
-                <option [ngValue]="168">1 Week</option>
-              </select>
-            </div>
-            <button (click)="blockIp()"
-                    [disabled]="blockLoading || !blockForm.ip || !blockForm.reason"
-                    class="w-full px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              {{ blockLoading ? 'Sending to edge device…' : 'Block IP' }}
+            <button (click)="loadDetectionEvents()"
+                    class="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium transition-colors">
+              <svg class="w-3.5 h-3.5" [class.animate-spin]="detectionEventsLoading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Refresh
             </button>
           </div>
 
-          <!-- Prevention stats -->
-          <div *ngIf="preventionStats" class="mt-5 pt-5 border-t border-gray-100 space-y-2">
-            <p class="text-xs font-medium text-gray-500">Statistics</p>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Total blocked (all time)</span>
-              <span class="font-medium text-gray-700">{{ preventionStats.total_blocked || 0 }}</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Active blocks</span>
-              <span class="font-medium text-gray-700">{{ preventionStats.active_blocked || blockedIps.length }}</span>
-            </div>
-          </div>
-        </div>
+          <div *ngIf="detectionEventsLoading && detectionEvents.length === 0"
+               class="py-12 text-center text-sm text-slate-600">Loading events…</div>
 
-        <!-- Blocked IPs table -->
-        <div class="lg:col-span-2 bg-white rounded-lg border border-gray-200">
-          <div class="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-gray-900">Active Blocks</h2>
-            <span class="text-xs text-gray-500">{{ blockedIps.length }} IP{{ blockedIps.length !== 1 ? 's' : '' }}</span>
+          <div *ngIf="!detectionEventsLoading && detectionEvents.length === 0"
+               class="py-12 text-center">
+            <svg class="w-8 h-8 text-slate-700 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+            </svg>
+            <p class="text-sm text-slate-600">No anomaly events in the last hour</p>
           </div>
 
-          <div *ngIf="blockedIps.length === 0" class="py-12 text-center text-sm text-gray-400">
-            No blocked IPs
-          </div>
-
-          <div *ngIf="blockedIps.length > 0" class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-100">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Threat</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Blocked At</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expires</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+          <div *ngIf="detectionEvents.length > 0" class="overflow-x-auto">
+            <table class="min-w-full">
+              <thead>
+                <tr class="border-b border-[#1a2d48]">
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Source IP</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Pattern</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Target Path</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Requests</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Status</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Detected</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Action</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-100">
-                <tr *ngFor="let b of blockedIps" class="hover:bg-gray-50">
-                  <td class="px-4 py-3 text-xs font-mono font-medium text-gray-900">
-                    {{ b.ip }}
-                    <div *ngIf="b.dns_names && b.dns_names.length > 0" class="flex flex-wrap gap-1 mt-1">
-                      <span *ngFor="let name of b.dns_names"
-                            class="text-xs bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">{{ name }}</span>
-                    </div>
+              <tbody class="divide-y divide-[#111e33]">
+                <tr *ngFor="let ev of detectionEvents" class="table-row-hover">
+                  <td class="px-5 py-3 text-xs font-mono font-semibold text-slate-200">
+                    {{ ev.src_ip }}
+                    <span *ngIf="isBlockedIp(ev.src_ip)" class="ml-1.5 text-[10px] bg-red-500/15 text-red-400 border border-red-500/20 rounded px-1 py-0.5">blocked</span>
                   </td>
-                  <td class="px-4 py-3 text-xs text-gray-600 max-w-xs truncate">{{ b.reason }}</td>
-                  <td class="px-4 py-3 text-xs">
-                    <span class="px-2 py-0.5 rounded-full font-medium text-xs"
-                          [class]="getThreatLevelBadge(b.threat_level)">
-                      {{ b.threat_level >= 8 ? 'High' : b.threat_level >= 5 ? 'Medium' : 'Low' }} ({{ b.threat_level }})
-                    </span>
+                  <td class="px-5 py-3 text-xs">
+                    <span class="px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 font-medium text-[11px]">{{ ev.detected_pattern }}</span>
                   </td>
-                  <td class="px-4 py-3 text-xs text-gray-500">{{ b.source }}</td>
-                  <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ b.blocked_at | date:'short' }}</td>
-                  <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ b.expires_at | date:'short' }}</td>
-                  <td class="px-4 py-3 text-xs">
-                    <button (click)="unblockIp(b.ip)"
-                            [disabled]="unblockLoading.has(b.ip)"
-                            class="px-2.5 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors">
-                      {{ unblockLoading.has(b.ip) ? '…' : 'Unblock' }}
+                  <td class="px-5 py-3 text-xs font-mono text-slate-400">{{ ev.path }}</td>
+                  <td class="px-5 py-3 text-xs font-mono text-slate-300">{{ ev.request_count }} / {{ ev.window_seconds }}s</td>
+                  <td class="px-5 py-3 text-xs">
+                    <span *ngIf="ev.triggered_block" class="px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-semibold text-[11px]">Blocked</span>
+                    <span *ngIf="!ev.triggered_block" class="px-2 py-0.5 rounded bg-slate-700/50 text-slate-500 border border-slate-700/50 text-[11px]">Alert only</span>
+                  </td>
+                  <td class="px-5 py-3 text-[11px] text-slate-500 font-mono">{{ formatTimestamp(ev.timestamp) }}</td>
+                  <td class="px-5 py-3 text-xs">
+                    <button *ngIf="!isBlockedIp(ev.src_ip)"
+                            (click)="blockIpFromEvent({ src_ip: ev.src_ip, event_type: 'alert', timestamp: ev.timestamp, alert: { signature: ev.detected_pattern } })"
+                            class="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 text-[11px] font-semibold transition-colors">
+                      Block
+                    </button>
+                    <button *ngIf="isBlockedIp(ev.src_ip)"
+                            (click)="unblockIp(ev.src_ip)"
+                            [disabled]="unblockLoading.has(ev.src_ip)"
+                            class="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg hover:bg-emerald-500/20 disabled:opacity-50 text-[11px] font-semibold transition-colors">
+                      Unblock
                     </button>
                   </td>
                 </tr>
@@ -574,359 +584,662 @@
             </table>
           </div>
         </div>
-      </div>
 
-    </ng-container>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!--  SETTINGS TAB                                                          -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <ng-container *ngIf="activeTab === 'settings'">
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        <!-- Auto-block toggle -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <div class="flex items-start justify-between">
-            <div>
-              <h2 class="text-sm font-semibold text-gray-900">Auto-block</h2>
-              <p class="text-xs text-gray-500 mt-1">
-                When enabled, IPs matching a threat pattern above the minimum threat level are automatically
-                blocked on the edge device without manual approval.
-              </p>
+        <!-- Recent Suricata Events -->
+        <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-[#1a2d48] flex flex-wrap items-center gap-3">
+            <h2 class="text-sm font-semibold text-slate-200 mr-auto">Recent Suricata Events</h2>
+            <!-- Search -->
+            <div class="relative">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z"/>
+              </svg>
+              <input type="text" [(ngModel)]="eventSearch"
+                     placeholder="IP, domain, signature…"
+                     class="dark-input pl-9 pr-3 py-2 text-xs rounded-lg w-52"/>
             </div>
-            <!-- Toggle button -->
-            <button (click)="toggleAutoBlock()"
-                    [disabled]="autoBlockToggling || !autoBlockSettings"
-                    class="relative inline-flex items-center h-6 rounded-full w-11 shrink-0 ml-4 transition-colors focus:outline-none disabled:opacity-50"
-                    [class]="(autoBlockSettings?.enabled) ? 'bg-green-600' : 'bg-gray-300'">
-              <span class="sr-only">Toggle auto-block</span>
-              <span class="inline-block w-4 h-4 transform bg-white rounded-full shadow transition-transform"
-                    [class]="(autoBlockSettings?.enabled) ? 'translate-x-6' : 'translate-x-1'"></span>
+            <!-- Type filter -->
+            <select [(ngModel)]="eventTypeFilter"
+                    class="dark-input text-xs px-3 py-2 rounded-lg">
+              <option value="">All types</option>
+              <option *ngFor="let t of eventTypes" [value]="t">{{ t }}</option>
+            </select>
+            <button *ngIf="eventSearch || eventTypeFilter"
+                    (click)="eventSearch = ''; eventTypeFilter = ''"
+                    class="text-xs text-slate-500 hover:text-slate-300 px-2 py-1 rounded hover:bg-[#1a2d48] transition-colors">
+              Clear
             </button>
           </div>
 
-          <div *ngIf="autoBlockSettings" class="mt-5 pt-4 border-t border-gray-100 space-y-3">
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Status</span>
-              <span class="font-medium" [class]="autoBlockSettings.enabled ? 'text-green-600' : 'text-gray-500'">
-                {{ autoBlockSettings.enabled ? 'Enabled' : 'Disabled' }}
-              </span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Block duration</span>
-              <span class="font-medium text-gray-700">{{ autoBlockSettings.block_duration_hours }}h</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Min threat level</span>
-              <span class="font-medium text-gray-700">{{ autoBlockSettings.min_threat_level }} / 10</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Last updated</span>
-              <span class="font-medium text-gray-700">{{ autoBlockSettings.updated_at | date:'short' }}</span>
-            </div>
-          </div>
+          <div *ngIf="loading.events" class="py-12 text-center text-sm text-slate-600">Loading events…</div>
+          <div *ngIf="!loading.events && filteredEvents.length === 0"
+               class="py-12 text-center text-sm text-slate-600">No events match the current filter</div>
 
-          <div *ngIf="!autoBlockSettings" class="mt-4 text-xs text-gray-400">Loading settings…</div>
-        </div>
-
-        <!-- Detection thresholds -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <h2 class="text-sm font-semibold text-gray-900 mb-4">Detection Thresholds</h2>
-          <div *ngIf="loading.settings" class="text-xs text-gray-400">Loading…</div>
-          <div *ngIf="!loading.settings && settingsForm" class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="text-xs font-medium text-gray-600 block mb-1">Brute-force threshold</label>
-                <input type="number" [(ngModel)]="settingsForm.brute_force_threshold" min="1"
-                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-                <p class="text-xs text-gray-400 mt-0.5">requests before detection</p>
-              </div>
-              <div>
-                <label class="text-xs font-medium text-gray-600 block mb-1">Window (seconds)</label>
-                <input type="number" [(ngModel)]="settingsForm.brute_force_window_seconds" min="10"
-                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="text-xs font-medium text-gray-600 block mb-1">Block duration (hours)</label>
-                <input type="number" [(ngModel)]="settingsForm.block_duration_hours" min="1"
-                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-              </div>
-              <div>
-                <label class="text-xs font-medium text-gray-600 block mb-1">Min alert level (0–10)</label>
-                <input type="number" [(ngModel)]="settingsForm.min_alert_level" min="0" max="10"
-                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-              </div>
-            </div>
-            <div class="flex items-center justify-between py-2 border-t border-gray-100">
-              <div>
-                <p class="text-xs font-medium text-gray-700">DNS Enrichment</p>
-                <p class="text-xs text-gray-400">Resolve source IPs to hostnames</p>
-              </div>
-              <button (click)="settingsForm.dns_enrichment_enabled = !settingsForm.dns_enrichment_enabled"
-                      class="relative inline-flex items-center h-5 rounded-full w-9 transition-colors"
-                      [class]="settingsForm.dns_enrichment_enabled ? 'bg-blue-600' : 'bg-gray-300'">
-                <span class="inline-block w-3.5 h-3.5 transform bg-white rounded-full shadow transition-transform"
-                      [class]="settingsForm.dns_enrichment_enabled ? 'translate-x-4' : 'translate-x-1'"></span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Monitored paths -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <h2 class="text-sm font-semibold text-gray-900 mb-1">Monitored Paths</h2>
-          <p class="text-xs text-gray-500 mb-4">Brute-force detection watches these HTTP paths for rapid login attempts.</p>
-
-          <div class="flex gap-2 mb-3">
-            <input type="text" [(ngModel)]="newMonitoredPath"
-                   placeholder="/path/to/monitor"
-                   (keydown.enter)="addMonitoredPath()"
-                   class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-            <button (click)="addMonitoredPath()"
-                    class="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Add</button>
-          </div>
-
-          <div class="space-y-1.5 max-h-48 overflow-y-auto">
-            <div *ngFor="let path of settingsForm.monitored_paths || []"
-                 class="flex items-center justify-between px-3 py-1.5 bg-gray-50 rounded-lg">
-              <span class="text-xs font-mono text-gray-700">{{ path }}</span>
-              <button (click)="removeMonitoredPath(path)"
-                      class="text-gray-400 hover:text-red-500 transition-colors ml-2">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-            <div *ngIf="!(settingsForm.monitored_paths?.length)" class="text-xs text-gray-400 py-2 text-center">
-              No monitored paths
-            </div>
-          </div>
-        </div>
-
-        <!-- Whitelist -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <h2 class="text-sm font-semibold text-gray-900 mb-1">IP Whitelist</h2>
-          <p class="text-xs text-gray-500 mb-4">IPs and CIDR ranges that are never auto-blocked (e.g. trusted internal subnets).</p>
-
-          <div class="flex gap-2 mb-3">
-            <input type="text" [(ngModel)]="newWhitelistEntry"
-                   placeholder="e.g. 192.168.0.0/16"
-                   (keydown.enter)="addWhitelistEntry()"
-                   class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-            <button (click)="addWhitelistEntry()"
-                    class="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Add</button>
-          </div>
-
-          <div class="space-y-1.5 max-h-48 overflow-y-auto">
-            <div *ngFor="let entry of settingsForm.whitelist || []"
-                 class="flex items-center justify-between px-3 py-1.5 bg-gray-50 rounded-lg">
-              <span class="text-xs font-mono text-gray-700">{{ entry }}</span>
-              <button (click)="removeWhitelistEntry(entry)"
-                      class="text-gray-400 hover:text-red-500 transition-colors ml-2">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-            <div *ngIf="!(settingsForm.whitelist?.length)" class="text-xs text-gray-400 py-2 text-center">
-              No whitelist entries
-            </div>
+          <div *ngIf="filteredEvents.length > 0" class="overflow-x-auto">
+            <table class="min-w-full">
+              <thead>
+                <tr class="border-b border-[#1a2d48]">
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest whitespace-nowrap">Time</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Type</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Source</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Destination</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Host / Domain</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Details</th>
+                  <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#111e33]">
+                <tr *ngFor="let ev of filteredEvents.slice(0, 50)" class="table-row-hover">
+                  <td class="px-5 py-2.5 text-[11px] text-slate-500 font-mono whitespace-nowrap">{{ formatTimestamp(ev.timestamp) }}</td>
+                  <td class="px-5 py-2.5 text-xs whitespace-nowrap">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase" [class]="getEventTypeColor(ev.event_type)">{{ ev.event_type }}</span>
+                  </td>
+                  <td class="px-5 py-2.5 text-xs whitespace-nowrap">
+                    <span class="font-mono text-[11px]"
+                          [class]="isBlockedIp(ev.src_ip) ? 'text-red-400 font-bold' : 'text-slate-300'">
+                      {{ ev.src_ip || '—' }}
+                    </span>
+                    <span *ngIf="ev.src_port" class="text-slate-600 text-[10px]">:{{ ev.src_port }}</span>
+                  </td>
+                  <td class="px-5 py-2.5 text-xs whitespace-nowrap">
+                    <span class="font-mono text-[11px] text-slate-400">{{ ev.dest_ip || '—' }}</span>
+                    <span *ngIf="ev.dest_port" class="text-slate-600 text-[10px]">:{{ ev.dest_port }}</span>
+                  </td>
+                  <td class="px-5 py-2.5 text-xs max-w-[180px]">
+                    <span *ngIf="getEventHost(ev)" class="font-medium text-[11px] truncate block"
+                          [class]="ev.event_type === 'dns' ? 'text-blue-400' : ev.event_type === 'http' ? 'text-emerald-400' : 'text-slate-300'">
+                      {{ getEventHost(ev) }}
+                    </span>
+                    <span *ngIf="!getEventHost(ev)" class="text-slate-700">—</span>
+                  </td>
+                  <td class="px-5 py-2.5 text-xs space-y-0.5 max-w-[220px]">
+                    <div *ngIf="ev.alert" class="text-[11px]" [class]="getSeverityColor(ev.alert.severity || 4)">
+                      <span class="truncate block">{{ ev.alert.signature || 'Unknown signature' }}</span>
+                      <span *ngIf="ev.alert.signature_id" class="text-slate-600"> SID:{{ ev.alert.signature_id }}</span>
+                    </div>
+                    <div *ngIf="hasDnsQuery(ev)" class="text-[11px] text-blue-400">DNS: {{ getDnsRrname(ev) }}</div>
+                    <div *ngIf="hasHttpHostname(ev)" class="text-[11px] text-emerald-400 truncate">
+                      {{ ev.http?.http_method }} {{ getHttpHostname(ev) }}{{ ev.http?.url || '' }}
+                      <span *ngIf="ev.http?.status" class="text-slate-500"> {{ ev.http?.status }}</span>
+                    </div>
+                    <div *ngIf="ev.proto" class="text-[10px] text-slate-600">{{ ev.proto }}<span *ngIf="ev.in_iface"> · {{ ev.in_iface }}</span></div>
+                  </td>
+                  <td class="px-5 py-2.5 text-xs whitespace-nowrap">
+                    <button *ngIf="ev.src_ip && ev.event_type === 'alert' && !isBlockedIp(ev.src_ip)"
+                            (click)="blockIpFromEvent(ev)"
+                            class="px-2.5 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 text-[11px] font-semibold transition-colors">
+                      Block
+                    </button>
+                    <span *ngIf="isBlockedIp(ev.src_ip)" class="flex items-center gap-1 text-red-400 text-[11px] font-semibold">
+                      <span class="w-1.5 h-1.5 bg-red-400 rounded-full blocked-dot"></span> Blocked
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p *ngIf="filteredEvents.length > 50" class="px-5 py-3 text-[11px] text-slate-600 border-t border-[#111e33]">
+              Showing 50 of {{ filteredEvents.length }} events
+            </p>
           </div>
         </div>
 
       </div>
-
-      <!-- Save button -->
-      <div class="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-5 py-4">
-        <p class="text-xs text-gray-500">
-          Settings are persisted in MongoDB and take effect immediately on the VPS.
-          <span *ngIf="detectionSettings?.updated_at"> Last saved: {{ detectionSettings?.updated_at | date:'short' }}</span>
-        </p>
-        <button (click)="saveSettings()"
-                [disabled]="settingsSaving"
-                class="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-          {{ settingsSaving ? 'Saving…' : 'Save Settings' }}
-        </button>
-      </div>
-
     </ng-container>
 
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!--  DEBUG TAB                                                             -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <ng-container *ngIf="activeTab === 'debug'">
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
+    <!--  PREVENTION TAB                                                           -->
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
+    <ng-container *ngIf="activeTab === 'prevention'">
+      <div class="tab-content">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-      <div class="flex items-center justify-between mb-2">
-        <h2 class="text-sm font-semibold text-gray-700">Edge Device Debug</h2>
-        <button (click)="loadEdgeDebug()"
-                class="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800">
-          <svg class="w-3.5 h-3.5" [class.animate-spin]="edgeDebugLoading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-          </svg>
-          Refresh
-        </button>
-      </div>
-
-      <!-- Error -->
-      <div *ngIf="edgeDebugError" class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-        <strong>Could not reach edge device:</strong> {{ edgeDebugError }}
-        <p class="mt-1 text-xs text-red-500">The api-gateway proxies this to the raspi-collector at the configured RASPI_ENDPOINT. Make sure the Pi is online and the WireGuard tunnel is up.</p>
-      </div>
-
-      <div *ngIf="edgeDebugLoading && !edgeDebug" class="py-12 text-center text-sm text-gray-400">Connecting to edge device…</div>
-
-      <div *ngIf="edgeDebug" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        <!-- WS connection status -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 class="text-sm font-semibold text-gray-900 mb-4">VPS WebSocket Connection</h3>
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-500">Status</span>
-              <span class="flex items-center gap-1.5 text-xs font-medium"
-                    [class]="edgeDebug.ws?.connected ? 'text-green-600' : 'text-red-500'">
-                <span class="w-2 h-2 rounded-full" [class]="edgeDebug.ws?.connected ? 'bg-green-500 animate-pulse' : 'bg-red-400'"></span>
-                {{ edgeDebug.ws?.connected ? 'Connected' : 'Disconnected' }}
-              </span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Target URL</span>
-              <span class="font-mono text-gray-700 text-right break-all max-w-xs">{{ edgeDebug.ws?.url }}</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Reconnect count</span>
-              <span class="font-medium text-gray-700">{{ edgeDebug.ws?.reconnect_count }}</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Last connected</span>
-              <span class="font-medium text-gray-700">{{ (edgeDebug.ws?.last_connected_at | date:'short') || '—' }}</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Commands received</span>
-              <span class="font-medium text-gray-700">{{ edgeDebug.ws?.commands_received }}</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Blocks applied</span>
-              <span class="font-medium text-gray-700">{{ edgeDebug.ws?.blocks_applied }}</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Unblocks applied</span>
-              <span class="font-medium text-gray-700">{{ edgeDebug.ws?.unblocks_applied }}</span>
-            </div>
-          </div>
-
-          <!-- Diagnostic -->
-          <div *ngIf="!edgeDebug.ws?.connected" class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p class="text-xs font-medium text-yellow-800 mb-1">Not connected — block commands will not be delivered</p>
-            <p class="text-xs text-yellow-700">
-              1. Verify <code class="bg-yellow-100 px-1 rounded">VPS_WS_URL=wss://idps.brentweb.eu/ws/raspi</code> in <code class="bg-yellow-100 px-1 rounded">.env</code><br>
-              2. Restart raspi-collector: <code class="bg-yellow-100 px-1 rounded">docker compose -f docker-compose.raspi.yml restart raspi-collector</code><br>
-              3. Check logs: <code class="bg-yellow-100 px-1 rounded">docker logs idps-raspi-collector-pi --tail 50</code>
-            </p>
-          </div>
-          <div *ngIf="edgeDebug.ws?.connected && edgeDebug.ws?.reconnect_count > 3" class="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-            <p class="text-xs text-blue-700">Connected but reconnected {{ edgeDebug.ws?.reconnect_count }} times — check network stability or VPS logs.</p>
-          </div>
-        </div>
-
-        <!-- Network-filter -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 class="text-sm font-semibold text-gray-900 mb-4">Network-Filter (iptables)</h3>
-          <div class="space-y-3">
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">URL</span>
-              <span class="font-mono text-gray-700">{{ edgeDebug.network_filter?.url }}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-500">Reachable</span>
-              <span class="text-xs font-medium"
-                    [class]="edgeDebug.network_filter?.reachable === true ? 'text-green-600' : edgeDebug.network_filter?.reachable === false ? 'text-red-500' : 'text-gray-400'">
-                {{ edgeDebug.network_filter?.reachable === true ? '✓ Yes' : edgeDebug.network_filter?.reachable === false ? '✗ No' : 'Unknown' }}
-              </span>
-            </div>
-          </div>
-
-          <div *ngIf="edgeDebug.network_filter?.reachable === false" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p class="text-xs font-medium text-red-800 mb-1">network-filter unreachable — blocks will not apply to iptables</p>
-            <p class="text-xs text-red-700">
-              Check: <code class="bg-red-100 px-1 rounded">docker logs idps-network-filter-pi --tail 30</code><br>
-              Verify <code class="bg-red-100 px-1 rounded">NETWORK_FILTER_URL=http://localhost:8092/api/v1</code> in compose
-            </p>
-          </div>
-
-          <div class="mt-5 pt-4 border-t border-gray-100">
-            <p class="text-xs font-medium text-gray-500 mb-2">Verify iptables on the Pi</p>
-            <code class="block text-xs bg-gray-50 border border-gray-200 rounded p-3 text-gray-700 font-mono leading-5">
-              # Check INPUT rules<br>
-              docker exec idps-network-filter-pi iptables -L INPUT -n --line-numbers<br><br>
-              # Check blocked IPs in filter<br>
-              docker exec idps-network-filter-pi iptables -L -n | grep DROP<br><br>
-              # Test a specific IP<br>
-              docker exec idps-network-filter-pi iptables -C INPUT -s 1.2.3.4 -j DROP
-            </code>
-          </div>
-        </div>
-
-        <!-- EVE metrics -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 class="text-sm font-semibold text-gray-900 mb-4">EVE Event Pipeline</h3>
-          <div class="space-y-3">
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Events collected</span>
-              <span class="font-medium text-gray-700">{{ edgeDebug.eve_metrics?.events_collected | number }}</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Events sent to VPS</span>
-              <span class="font-medium text-gray-700">{{ edgeDebug.eve_metrics?.events_sent | number }}</span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Failed sends</span>
-              <span class="font-medium" [class]="(edgeDebug.eve_metrics?.failed_sends || 0) > 0 ? 'text-red-600' : 'text-gray-700'">
-                {{ edgeDebug.eve_metrics?.failed_sends }}
-              </span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-500">Last collection</span>
-              <span class="font-medium text-gray-700">{{ (edgeDebug.eve_metrics?.last_collection | date:'short') || '—' }}</span>
-            </div>
-          </div>
-          <div *ngIf="(edgeDebug.eve_metrics?.events_collected || 0) === 0" class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p class="text-xs text-yellow-800">No events collected yet. Is Suricata running and writing to <code class="bg-yellow-100 px-1 rounded">/var/log/suricata/eve.json</code>?</p>
-            <p class="text-xs text-yellow-700 mt-1">Check: <code class="bg-yellow-100 px-1 rounded">docker logs idps-suricata-pi --tail 20</code></p>
-          </div>
-        </div>
-
-        <!-- Recent commands -->
-        <div class="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 class="text-sm font-semibold text-gray-900 mb-4">Recent Commands from VPS</h3>
-          <div *ngIf="!edgeDebug.recent_commands?.length" class="text-xs text-gray-400 py-4 text-center">
-            No commands received yet
-          </div>
-          <div *ngIf="edgeDebug.recent_commands?.length" class="space-y-2 max-h-64 overflow-y-auto">
-            <div *ngFor="let cmd of edgeDebug.recent_commands.slice().reverse()"
-                 class="flex items-start gap-3 px-3 py-2 rounded-lg border"
-                 [class]="cmd.success ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'">
-              <span class="text-xs mt-0.5" [class]="cmd.success ? 'text-green-600' : 'text-red-500'">
-                {{ cmd.success ? '✓' : '✗' }}
-              </span>
-              <div class="min-w-0 flex-1">
-                <p class="text-xs font-medium" [class]="cmd.cmd_type === 'block_command' ? 'text-red-700' : 'text-green-700'">
-                  {{ cmd.cmd_type === 'block_command' ? 'BLOCK' : 'UNBLOCK' }}
-                  <span class="font-mono ml-1">{{ cmd.ip }}</span>
-                </p>
-                <p class="text-xs text-gray-500 truncate">{{ cmd.reason }}</p>
+          <!-- Block IP Form -->
+          <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#1a2d48] flex items-center gap-2.5">
+              <div class="w-6 h-6 rounded-md bg-red-500/10 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                </svg>
               </div>
-              <span class="text-xs text-gray-400 shrink-0">{{ cmd.received_at | date:'HH:mm:ss' }}</span>
+              <h2 class="text-sm font-semibold text-slate-200">Block IP / CIDR</h2>
+            </div>
+            <div class="p-5 space-y-4">
+              <div>
+                <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest block mb-1.5">IP Address or CIDR range</label>
+                <input type="text" [(ngModel)]="blockForm.ip"
+                       placeholder="e.g. 1.2.3.4 or 10.0.0.0/8"
+                       class="dark-input w-full px-3 py-2.5 text-sm rounded-lg"/>
+              </div>
+              <div>
+                <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest block mb-1.5">Reason</label>
+                <input type="text" [(ngModel)]="blockForm.reason"
+                       placeholder="e.g. Brute-force attempt"
+                       class="dark-input w-full px-3 py-2.5 text-sm rounded-lg"/>
+              </div>
+              <div>
+                <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest block mb-1.5">Duration</label>
+                <select [(ngModel)]="blockForm.durationHours"
+                        class="dark-input w-full px-3 py-2.5 text-sm rounded-lg">
+                  <option [ngValue]="1">1 Hour</option>
+                  <option [ngValue]="6">6 Hours</option>
+                  <option [ngValue]="24">24 Hours</option>
+                  <option [ngValue]="72">3 Days</option>
+                  <option [ngValue]="168">1 Week</option>
+                </select>
+              </div>
+              <button (click)="blockIp()"
+                      [disabled]="blockLoading || !blockForm.ip || !blockForm.reason"
+                      class="w-full px-4 py-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold rounded-xl hover:bg-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
+                <svg *ngIf="!blockLoading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                </svg>
+                <svg *ngIf="blockLoading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                {{ blockLoading ? 'Sending to edge device…' : 'Block IP' }}
+              </button>
+
+              <!-- Prevention Stats -->
+              <div *ngIf="preventionStats" class="pt-4 border-t border-[#1a2d48] space-y-3">
+                <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Statistics</p>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="bg-[#0a1225] rounded-lg p-3 text-center">
+                    <p class="text-[10px] text-slate-600">All-time blocked</p>
+                    <p class="text-lg font-bold text-slate-200 mt-0.5">{{ preventionStats.total_blocked || 0 }}</p>
+                  </div>
+                  <div class="bg-[#0a1225] rounded-lg p-3 text-center">
+                    <p class="text-[10px] text-slate-600">Active blocks</p>
+                    <p class="text-lg font-bold text-red-400 mt-0.5">{{ preventionStats.active_blocked || blockedIps.length }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Blocks Table -->
+          <div class="lg:col-span-2 bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#1a2d48] flex items-center justify-between">
+              <h2 class="text-sm font-semibold text-slate-200">Active Blocks</h2>
+              <span class="text-[11px] text-slate-600 font-medium">{{ blockedIps.length }} IP{{ blockedIps.length !== 1 ? 's' : '' }} blocked</span>
+            </div>
+
+            <div *ngIf="blockedIps.length === 0" class="py-12 text-center">
+              <svg class="w-8 h-8 text-slate-700 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+              </svg>
+              <p class="text-sm text-slate-600">No blocked IPs</p>
+            </div>
+
+            <div *ngIf="blockedIps.length > 0" class="overflow-x-auto">
+              <table class="min-w-full">
+                <thead>
+                  <tr class="border-b border-[#1a2d48]">
+                    <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">IP Address</th>
+                    <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Reason</th>
+                    <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Threat</th>
+                    <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Source</th>
+                    <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Blocked At</th>
+                    <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Expires</th>
+                    <th class="px-5 py-3 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Action</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#111e33]">
+                  <tr *ngFor="let b of blockedIps" class="table-row-hover">
+                    <td class="px-5 py-3 text-xs font-mono">
+                      <span class="font-bold text-slate-200">{{ b.ip }}</span>
+                      <div *ngIf="b.dns_names && b.dns_names.length > 0" class="flex flex-wrap gap-1 mt-1">
+                        <span *ngFor="let name of b.dns_names"
+                              class="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded px-1.5 py-0.5">{{ name }}</span>
+                      </div>
+                    </td>
+                    <td class="px-5 py-3 text-xs text-slate-400 max-w-[160px] truncate">{{ b.reason }}</td>
+                    <td class="px-5 py-3 text-xs">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-semibold"
+                            [class]="b.threat_level >= 8 ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              : b.threat_level >= 5 ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'">
+                        {{ b.threat_level >= 8 ? 'High' : b.threat_level >= 5 ? 'Med' : 'Low' }} ({{ b.threat_level }})
+                      </span>
+                    </td>
+                    <td class="px-5 py-3 text-[11px] text-slate-500">{{ b.source }}</td>
+                    <td class="px-5 py-3 text-[11px] text-slate-500 whitespace-nowrap font-mono">{{ b.blocked_at | date:'short' }}</td>
+                    <td class="px-5 py-3 text-[11px] text-slate-500 whitespace-nowrap font-mono">{{ b.expires_at | date:'short' }}</td>
+                    <td class="px-5 py-3 text-xs">
+                      <button (click)="unblockIp(b.ip)"
+                              [disabled]="unblockLoading.has(b.ip)"
+                              class="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg hover:bg-emerald-500/20 disabled:opacity-50 text-[11px] font-semibold transition-colors">
+                        {{ unblockLoading.has(b.ip) ? '…' : 'Unblock' }}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
+    <!--  SETTINGS TAB                                                             -->
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
+    <ng-container *ngIf="activeTab === 'settings'">
+      <div class="tab-content space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          <!-- Auto-block toggle -->
+          <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <div class="w-5 h-5 rounded bg-emerald-500/10 flex items-center justify-center">
+                    <svg class="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                    </svg>
+                  </div>
+                  <h2 class="text-sm font-semibold text-slate-200">Auto-block</h2>
+                </div>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                  When enabled, IPs matching a threat pattern above the minimum threat level are automatically
+                  blocked on the edge device without manual approval.
+                </p>
+              </div>
+              <!-- Toggle -->
+              <button (click)="toggleAutoBlock()"
+                      [disabled]="autoBlockToggling || !autoBlockSettings"
+                      class="relative inline-flex items-center h-6 rounded-full w-11 shrink-0 toggle-track disabled:opacity-50 focus:outline-none"
+                      [class]="autoBlockSettings?.enabled ? 'bg-emerald-500' : 'bg-[#1a2d48]'">
+                <span class="sr-only">Toggle auto-block</span>
+                <span class="inline-block w-4 h-4 transform bg-white rounded-full shadow-sm toggle-thumb"
+                      [class]="autoBlockSettings?.enabled ? 'translate-x-6' : 'translate-x-1'"></span>
+              </button>
+            </div>
+
+            <div *ngIf="autoBlockSettings" class="mt-5 pt-4 border-t border-[#1a2d48] space-y-3">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Status</span>
+                <span class="font-semibold" [class]="autoBlockSettings.enabled ? 'text-emerald-400' : 'text-slate-600'">
+                  {{ autoBlockSettings.enabled ? 'Enabled' : 'Disabled' }}
+                </span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Block duration</span>
+                <span class="font-semibold text-slate-300">{{ autoBlockSettings.block_duration_hours }}h</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Min threat level</span>
+                <span class="font-semibold text-slate-300">{{ autoBlockSettings.min_threat_level }} / 10</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Last updated</span>
+                <span class="font-semibold text-slate-400 font-mono">{{ autoBlockSettings.updated_at | date:'short' }}</span>
+              </div>
+            </div>
+            <div *ngIf="!autoBlockSettings" class="mt-4 text-xs text-slate-600">Loading settings…</div>
+          </div>
+
+          <!-- Detection Thresholds -->
+          <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-5 h-5 rounded bg-cyan-500/10 flex items-center justify-center">
+                <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/>
+                </svg>
+              </div>
+              <h2 class="text-sm font-semibold text-slate-200">Detection Thresholds</h2>
+            </div>
+            <div *ngIf="loading.settings" class="text-xs text-slate-600">Loading…</div>
+            <div *ngIf="!loading.settings && settingsForm" class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest block mb-1.5">Brute-force threshold</label>
+                  <input type="number" [(ngModel)]="settingsForm.brute_force_threshold" min="1"
+                         class="dark-input w-full px-3 py-2.5 text-sm rounded-lg"/>
+                  <p class="text-[10px] text-slate-600 mt-1">requests before detection</p>
+                </div>
+                <div>
+                  <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest block mb-1.5">Window (seconds)</label>
+                  <input type="number" [(ngModel)]="settingsForm.brute_force_window_seconds" min="10"
+                         class="dark-input w-full px-3 py-2.5 text-sm rounded-lg"/>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest block mb-1.5">Block duration (hours)</label>
+                  <input type="number" [(ngModel)]="settingsForm.block_duration_hours" min="1"
+                         class="dark-input w-full px-3 py-2.5 text-sm rounded-lg"/>
+                </div>
+                <div>
+                  <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest block mb-1.5">Min alert level (0–10)</label>
+                  <input type="number" [(ngModel)]="settingsForm.min_alert_level" min="0" max="10"
+                         class="dark-input w-full px-3 py-2.5 text-sm rounded-lg"/>
+                </div>
+              </div>
+              <!-- DNS Enrichment Toggle -->
+              <div class="flex items-center justify-between pt-3 border-t border-[#1a2d48]">
+                <div>
+                  <p class="text-sm font-medium text-slate-300">DNS Enrichment</p>
+                  <p class="text-xs text-slate-600 mt-0.5">Resolve source IPs to hostnames</p>
+                </div>
+                <button (click)="settingsForm.dns_enrichment_enabled = !settingsForm.dns_enrichment_enabled"
+                        class="relative inline-flex items-center h-5 rounded-full w-9 toggle-track"
+                        [class]="settingsForm.dns_enrichment_enabled ? 'bg-cyan-500' : 'bg-[#1a2d48]'">
+                  <span class="inline-block w-3.5 h-3.5 transform bg-white rounded-full shadow-sm toggle-thumb"
+                        [class]="settingsForm.dns_enrichment_enabled ? 'translate-x-4' : 'translate-x-0.5'"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monitored Paths -->
+          <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl p-5">
+            <div class="mb-1">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-5 h-5 rounded bg-blue-500/10 flex items-center justify-center">
+                  <svg class="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/>
+                  </svg>
+                </div>
+                <h2 class="text-sm font-semibold text-slate-200">Monitored Paths</h2>
+              </div>
+              <p class="text-xs text-slate-500 mb-4">Brute-force detection watches these HTTP paths for rapid login attempts.</p>
+            </div>
+            <div class="flex gap-2 mb-3">
+              <input type="text" [(ngModel)]="newMonitoredPath"
+                     placeholder="/path/to/monitor"
+                     (keydown.enter)="addMonitoredPath()"
+                     class="dark-input flex-1 px-3 py-2 text-sm rounded-lg font-mono"/>
+              <button (click)="addMonitoredPath()"
+                      class="px-3 py-2 text-sm bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 font-semibold transition-colors">Add</button>
+            </div>
+            <div class="space-y-1.5 max-h-48 overflow-y-auto dark-scroll">
+              <div *ngFor="let path of settingsForm.monitored_paths || []"
+                   class="flex items-center justify-between px-3 py-2 bg-[#0a1225] border border-[#1a2d48] rounded-lg">
+                <span class="text-xs font-mono text-slate-300">{{ path }}</span>
+                <button (click)="removeMonitoredPath(path)"
+                        class="text-slate-600 hover:text-red-400 transition-colors ml-2 shrink-0">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+              <div *ngIf="!(settingsForm.monitored_paths?.length)" class="text-xs text-slate-600 py-4 text-center">
+                No monitored paths
+              </div>
+            </div>
+          </div>
+
+          <!-- IP Whitelist -->
+          <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-5 h-5 rounded bg-emerald-500/10 flex items-center justify-center">
+                <svg class="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </div>
+              <h2 class="text-sm font-semibold text-slate-200">IP Whitelist</h2>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">IPs and CIDR ranges that are never auto-blocked.</p>
+            <div class="flex gap-2 mb-3">
+              <input type="text" [(ngModel)]="newWhitelistEntry"
+                     placeholder="e.g. 192.168.0.0/16"
+                     (keydown.enter)="addWhitelistEntry()"
+                     class="dark-input flex-1 px-3 py-2 text-sm rounded-lg font-mono"/>
+              <button (click)="addWhitelistEntry()"
+                      class="px-3 py-2 text-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg hover:bg-emerald-500/20 font-semibold transition-colors">Add</button>
+            </div>
+            <div class="space-y-1.5 max-h-48 overflow-y-auto dark-scroll">
+              <div *ngFor="let entry of settingsForm.whitelist || []"
+                   class="flex items-center justify-between px-3 py-2 bg-[#0a1225] border border-[#1a2d48] rounded-lg">
+                <span class="text-xs font-mono text-slate-300">{{ entry }}</span>
+                <button (click)="removeWhitelistEntry(entry)"
+                        class="text-slate-600 hover:text-red-400 transition-colors ml-2 shrink-0">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+              <div *ngIf="!(settingsForm.whitelist?.length)" class="text-xs text-slate-600 py-4 text-center">
+                No whitelist entries
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Save Button Bar -->
+        <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl px-5 py-4 flex items-center justify-between gap-4">
+          <p class="text-xs text-slate-500">
+            Settings are persisted in MongoDB and take effect immediately on the VPS.
+            <span *ngIf="detectionSettings?.updated_at" class="text-slate-600"> Last saved: {{ detectionSettings?.updated_at | date:'short' }}</span>
+          </p>
+          <button (click)="saveSettings()"
+                  [disabled]="settingsSaving"
+                  class="px-5 py-2.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-semibold rounded-xl hover:bg-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2 shrink-0">
+            <svg *ngIf="!settingsSaving" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <svg *ngIf="settingsSaving" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            {{ settingsSaving ? 'Saving…' : 'Save Settings' }}
+          </button>
+        </div>
+
+      </div>
+    </ng-container>
+
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
+    <!--  DEBUG TAB                                                                -->
+    <!-- ══════════════════════════════════════════════════════════════════════════ -->
+    <ng-container *ngIf="activeTab === 'debug'">
+      <div class="tab-content">
+
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-200">Edge Device Diagnostics</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Live state from the Raspberry Pi collector</p>
+          </div>
+          <button (click)="loadEdgeDebug()"
+                  class="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium transition-colors">
+            <svg class="w-3.5 h-3.5" [class.animate-spin]="edgeDebugLoading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <!-- Error -->
+        <div *ngIf="edgeDebugError" class="bg-red-500/5 border border-red-500/20 rounded-xl p-5 mb-5">
+          <div class="flex items-start gap-3">
+            <svg class="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+            </svg>
+            <div>
+              <p class="text-sm font-semibold text-red-400">Could not reach edge device</p>
+              <p class="text-xs text-red-400/70 mt-1">{{ edgeDebugError }}</p>
+              <p class="text-xs text-slate-500 mt-2">The api-gateway proxies this to the raspi-collector. Ensure the Pi is online and the WireGuard tunnel is active.</p>
             </div>
           </div>
         </div>
 
-      </div>
+        <div *ngIf="edgeDebugLoading && !edgeDebug" class="py-16 text-center">
+          <svg class="w-6 h-6 text-slate-600 animate-spin mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          <p class="text-sm text-slate-600">Connecting to edge device…</p>
+        </div>
 
+        <div *ngIf="edgeDebug" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          <!-- WS Connection -->
+          <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#1a2d48] flex items-center gap-2">
+              <div class="w-6 h-6 rounded-md flex items-center justify-center"
+                   [class]="edgeDebug.ws?.connected ? 'bg-emerald-500/10' : 'bg-red-500/10'">
+                <svg class="w-3.5 h-3.5" [class]="edgeDebug.ws?.connected ? 'text-emerald-400' : 'text-red-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"/>
+                </svg>
+              </div>
+              <h3 class="text-sm font-semibold text-slate-200">VPS WebSocket Connection</h3>
+            </div>
+            <div class="p-5 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-500">Status</span>
+                <span class="flex items-center gap-1.5 text-xs font-semibold"
+                      [class]="edgeDebug.ws?.connected ? 'text-emerald-400' : 'text-red-400'">
+                  <span class="w-2 h-2 rounded-full" [class]="edgeDebug.ws?.connected ? 'bg-emerald-400 live-dot' : 'bg-red-400'"></span>
+                  {{ edgeDebug.ws?.connected ? 'Connected' : 'Disconnected' }}
+                </span>
+              </div>
+              <div class="flex justify-between gap-4 text-xs">
+                <span class="text-slate-500 shrink-0">Target URL</span>
+                <span class="font-mono text-slate-400 text-right break-all text-[11px]">{{ edgeDebug.ws?.url }}</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Reconnect count</span>
+                <span class="font-semibold font-mono" [class]="(edgeDebug.ws?.reconnect_count || 0) > 3 ? 'text-amber-400' : 'text-slate-300'">{{ edgeDebug.ws?.reconnect_count }}</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Last connected</span>
+                <span class="font-mono text-slate-400 text-[11px]">{{ (edgeDebug.ws?.last_connected_at | date:'short') || '—' }}</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Commands received</span>
+                <span class="font-semibold font-mono text-slate-300">{{ edgeDebug.ws?.commands_received }}</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Blocks applied</span>
+                <span class="font-semibold font-mono text-slate-300">{{ edgeDebug.ws?.blocks_applied }}</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Unblocks applied</span>
+                <span class="font-semibold font-mono text-slate-300">{{ edgeDebug.ws?.unblocks_applied }}</span>
+              </div>
+            </div>
+
+            <!-- Diagnostic -->
+            <div *ngIf="!edgeDebug.ws?.connected" class="mx-5 mb-5 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+              <p class="text-xs font-semibold text-amber-400 mb-2">Not connected — block commands will not be delivered</p>
+              <ol class="text-xs text-amber-400/60 space-y-1 list-decimal list-inside">
+                <li>Verify <code class="bg-amber-500/10 px-1 rounded font-mono text-[11px]">VPS_WS_URL=wss://idps.brentweb.eu/ws/raspi</code> in <code class="bg-amber-500/10 px-1 rounded font-mono text-[11px]">.env</code></li>
+                <li>Restart: <code class="bg-amber-500/10 px-1 rounded font-mono text-[11px]">docker compose -f docker-compose.raspi.yml restart raspi-collector</code></li>
+                <li>Check logs: <code class="bg-amber-500/10 px-1 rounded font-mono text-[11px]">docker logs idps-raspi-collector-pi --tail 50</code></li>
+              </ol>
+            </div>
+            <div *ngIf="edgeDebug.ws?.connected && edgeDebug.ws?.reconnect_count > 3" class="mx-5 mb-5 p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+              <p class="text-xs text-blue-400">Connected but reconnected {{ edgeDebug.ws?.reconnect_count }} times — check network stability or VPS logs.</p>
+            </div>
+          </div>
+
+          <!-- Network Filter -->
+          <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#1a2d48]">
+              <h3 class="text-sm font-semibold text-slate-200">Network-Filter (iptables)</h3>
+            </div>
+            <div class="p-5 space-y-3">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">URL</span>
+                <span class="font-mono text-slate-400 text-[11px]">{{ edgeDebug.network_filter?.url }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-500">Reachable</span>
+                <span class="text-xs font-semibold"
+                      [class]="edgeDebug.network_filter?.reachable === true ? 'text-emerald-400'
+                        : edgeDebug.network_filter?.reachable === false ? 'text-red-400'
+                        : 'text-slate-500'">
+                  {{ edgeDebug.network_filter?.reachable === true ? '✓ Yes' : edgeDebug.network_filter?.reachable === false ? '✗ No' : 'Unknown' }}
+                </span>
+              </div>
+            </div>
+            <div *ngIf="edgeDebug.network_filter?.reachable === false" class="mx-5 mb-5 p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+              <p class="text-xs font-semibold text-red-400 mb-2">network-filter unreachable — blocks will not apply to iptables</p>
+              <p class="text-xs text-red-400/60">
+                Check: <code class="bg-red-500/10 px-1 rounded font-mono text-[11px]">docker logs idps-network-filter-pi --tail 30</code><br class="mb-1"/>
+                Verify <code class="bg-red-500/10 px-1 rounded font-mono text-[11px]">NETWORK_FILTER_URL=http://localhost:8092/api/v1</code>
+              </p>
+            </div>
+            <div class="mx-5 mb-5 pt-4 border-t border-[#1a2d48]">
+              <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Verify iptables on the Pi</p>
+              <div class="code-block bg-[#050d1a] border border-[#1a2d48] rounded-xl p-4 text-slate-400 leading-6">
+                <span class="text-slate-600"># Check INPUT rules</span><br>
+                docker exec idps-network-filter-pi iptables -L INPUT -n --line-numbers<br><br>
+                <span class="text-slate-600"># Blocked IPs in filter</span><br>
+                docker exec idps-network-filter-pi iptables -L -n | grep DROP<br><br>
+                <span class="text-slate-600"># Test a specific IP</span><br>
+                docker exec idps-network-filter-pi iptables -C INPUT -s 1.2.3.4 -j DROP
+              </div>
+            </div>
+          </div>
+
+          <!-- EVE Metrics -->
+          <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#1a2d48]">
+              <h3 class="text-sm font-semibold text-slate-200">EVE Event Pipeline</h3>
+            </div>
+            <div class="p-5 space-y-3">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Events collected</span>
+                <span class="font-semibold font-mono text-slate-200">{{ edgeDebug.eve_metrics?.events_collected | number }}</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Events sent to VPS</span>
+                <span class="font-semibold font-mono text-slate-200">{{ edgeDebug.eve_metrics?.events_sent | number }}</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Failed sends</span>
+                <span class="font-semibold font-mono" [class]="(edgeDebug.eve_metrics?.failed_sends || 0) > 0 ? 'text-red-400' : 'text-slate-300'">
+                  {{ edgeDebug.eve_metrics?.failed_sends }}
+                </span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Last collection</span>
+                <span class="font-mono text-slate-400 text-[11px]">{{ (edgeDebug.eve_metrics?.last_collection | date:'short') || '—' }}</span>
+              </div>
+            </div>
+            <div *ngIf="(edgeDebug.eve_metrics?.events_collected || 0) === 0" class="mx-5 mb-5 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+              <p class="text-xs font-semibold text-amber-400 mb-1">No events collected</p>
+              <p class="text-xs text-amber-400/60">
+                Is Suricata running and writing to <code class="bg-amber-500/10 px-1 rounded font-mono text-[11px]">/var/log/suricata/eve.json</code>?<br/>
+                Check: <code class="bg-amber-500/10 px-1 rounded font-mono text-[11px]">docker logs idps-suricata-pi --tail 20</code>
+              </p>
+            </div>
+          </div>
+
+          <!-- Recent Commands -->
+          <div class="bg-[#0c1829] border border-[#1a2d48] rounded-xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#1a2d48]">
+              <h3 class="text-sm font-semibold text-slate-200">Recent Commands from VPS</h3>
+            </div>
+            <div class="p-5">
+              <div *ngIf="!edgeDebug.recent_commands?.length" class="text-xs text-slate-600 py-6 text-center">
+                No commands received yet
+              </div>
+              <div *ngIf="edgeDebug.recent_commands?.length" class="space-y-2 max-h-64 overflow-y-auto dark-scroll">
+                <div *ngFor="let cmd of edgeDebug.recent_commands.slice().reverse()"
+                     class="flex items-start gap-3 px-3 py-2.5 rounded-lg border"
+                     [class]="cmd.success
+                       ? 'bg-emerald-500/5 border-emerald-500/15'
+                       : 'bg-red-500/5 border-red-500/15'">
+                  <span class="text-xs mt-0.5 shrink-0" [class]="cmd.success ? 'text-emerald-400' : 'text-red-400'">
+                    {{ cmd.success ? '✓' : '✗' }}
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-xs font-semibold" [class]="cmd.cmd_type === 'block_command' ? 'text-red-400' : 'text-emerald-400'">
+                      {{ cmd.cmd_type === 'block_command' ? 'BLOCK' : 'UNBLOCK' }}
+                      <span class="font-mono ml-1 text-slate-300">{{ cmd.ip }}</span>
+                    </p>
+                    <p class="text-[11px] text-slate-500 truncate mt-0.5">{{ cmd.reason }}</p>
+                  </div>
+                  <span class="text-[10px] text-slate-600 shrink-0 font-mono">{{ cmd.received_at | date:'HH:mm:ss' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </ng-container>
 
   </div>

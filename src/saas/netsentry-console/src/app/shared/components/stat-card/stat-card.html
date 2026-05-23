@@ -1,0 +1,13 @@
+<!-- Stat Card -->
+<div class="card-abstract p-4">
+  @if (figure) {
+    <div class="text-primary mb-1">
+      <span class="text-2xl font-semibold">{{ figure }}</span>
+    </div>
+  }
+  <div class="text-xs font-medium text-base-content/50 uppercase tracking-wider mb-1">{{ title }}</div>
+  <div class="text-xl font-semibold">{{ value }}</div>
+  @if (desc) {
+    <div class="text-xs text-base-content/50 mt-1">{{ desc }}</div>
+  }
+</div>

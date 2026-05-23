@@ -544,36 +544,36 @@ export class IdpsComponent implements OnInit, OnDestroy {
   }
 
   getSeverityColor(severity: number): string {
-    if (severity === 1) return 'text-red-600 font-semibold';
-    if (severity === 2) return 'text-orange-500 font-semibold';
-    if (severity === 3) return 'text-yellow-600';
-    return 'text-gray-600';
+    if (severity === 1) return 'text-red-400 font-semibold';
+    if (severity === 2) return 'text-orange-400 font-semibold';
+    if (severity === 3) return 'text-amber-400';
+    return 'text-slate-400';
   }
 
   getAlertSeverityBadge(severity: string): string {
     switch (severity) {
-      case 'critical': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-orange-100 text-orange-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-blue-100 text-blue-800';
+      case 'critical': return 'bg-red-500/15 text-red-400 border border-red-500/20';
+      case 'high': return 'bg-orange-500/15 text-orange-400 border border-orange-500/20';
+      case 'medium': return 'bg-amber-500/15 text-amber-400 border border-amber-500/20';
+      default: return 'bg-blue-500/15 text-blue-400 border border-blue-500/20';
     }
   }
 
   getEventTypeColor(type: string): string {
     switch (type) {
-      case 'alert': return 'bg-red-100 text-red-800';
-      case 'dns': return 'bg-blue-100 text-blue-800';
-      case 'http': return 'bg-green-100 text-green-800';
-      case 'tls': return 'bg-purple-100 text-purple-800';
-      case 'fileinfo': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'alert':    return 'bg-red-500/10 text-red-400 border border-red-500/20';
+      case 'dns':      return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+      case 'http':     return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      case 'tls':      return 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
+      case 'fileinfo': return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+      default:         return 'bg-slate-700/50 text-slate-400 border border-slate-700/50';
     }
   }
 
   getThreatLevelBadge(level: number): string {
-    if (level >= 8) return 'bg-red-100 text-red-800';
-    if (level >= 5) return 'bg-orange-100 text-orange-800';
-    return 'bg-yellow-100 text-yellow-800';
+    if (level >= 8) return 'bg-red-500/10 text-red-400 border border-red-500/20';
+    if (level >= 5) return 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
+    return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
   }
 
   getConnectionStatusColor(): string {

@@ -1,0 +1,80 @@
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-xl font-bold">System Logs</h1>
+    <p class="text-sm text-base-content/60">Structured log stream from NetSentry microservices</p>
+  </div>
+  <div class="join">
+    <a routerLink="/system/services" class="btn btn-sm join-item btn-ghost">Services</a>
+    <a routerLink="/system/logs"     class="btn btn-sm join-item btn-active">Logs</a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="flex flex-wrap items-end gap-3 mb-4">
+  <label class="form-control">
+    <div class="label"><span class="label-text text-xs">Service</span></div>
+    <select class="select select-bordered select-sm w-44 font-mono"
+      [(ngModel)]="selectedService" (ngModelChange)="fetch()">
+      @for (s of services; track s) {
+        <option [value]="s">{{ s }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="form-control">
+    <div class="label"><span class="label-text text-xs">Level</span></div>
+    <select class="select select-bordered select-sm w-32"
+      [(ngModel)]="selectedLevel" (ngModelChange)="fetch()">
+      @for (l of levels; track l) {
+        <option [value]="l">{{ l }}</option>
+      }
+    </select>
+  </label>
+
+  <button class="btn btn-sm btn-ghost mb-0.5" (click)="fetch()">
+    @if (loading()) { <span class="loading loading-spinner loading-xs"></span> }
+    @else { Refresh }
+  </button>
+
+  <label class="label cursor-pointer gap-2 ml-auto mb-0.5">
+    <span class="label-text text-xs">Auto-scroll</span>
+    <input type="checkbox" class="toggle toggle-primary toggle-sm"
+      [ngModel]="autoScroll()" (ngModelChange)="autoScroll.set($event)" />
+  </label>
+</div>
+
+<!-- Log output -->
+<div #logContainer
+  class="bg-base-300 rounded-box font-mono text-xs overflow-y-auto h-[32rem] border border-base-content/10">
+  @if (loading() && entries().length === 0) {
+    <div class="flex items-center justify-center h-full text-base-content/40">
+      <span class="loading loading-spinner loading-sm mr-2"></span> Loading logs…
+    </div>
+  } @else if (entries().length === 0) {
+    <div class="flex items-center justify-center h-full text-base-content/40">No log entries found.</div>
+  } @else {
+    <table class="table table-xs w-full">
+      <thead class="sticky top-0 bg-base-300 z-10">
+        <tr>
+          <th class="w-20">Time</th>
+          <th class="w-16">Level</th>
+          <th class="w-32">Service</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of entries(); track $index) {
+          <tr class="hover:bg-base-content/5">
+            <td class="text-base-content/50 whitespace-nowrap">{{ formatTs(e.timestamp) }}</td>
+            <td>
+              <span class="badge badge-xs" [class]="levelClass(e.level)">{{ e.level }}</span>
+            </td>
+            <td class="text-base-content/70">{{ e.service }}</td>
+            <td class="whitespace-pre-wrap break-all">{{ e.message }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+<p class="text-xs text-base-content/40 mt-2 text-right">{{ entries().length }} entries</p>

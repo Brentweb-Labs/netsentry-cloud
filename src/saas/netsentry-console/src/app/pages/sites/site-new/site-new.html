@@ -1,0 +1,76 @@
+<!-- Breadcrumb -->
+<div class="text-sm breadcrumbs mb-4">
+  <ul><li><a routerLink="/sites">Sites</a></li><li>New Site</li></ul>
+</div>
+
+<div class="max-w-lg">
+  <h1 class="text-xl font-semibold mb-1">Create Site</h1>
+  <p class="text-sm text-base-content/60 mb-6">A site represents a customer location grouping one or more sensors.</p>
+
+  <!-- Steps indicator -->
+  <ul class="steps steps-horizontal w-full mb-6">
+    @for (label of stepLabels; track $index) {
+      <li class="step" [class.step-primary]="step() > $index">{{ label }}</li>
+    }
+  </ul>
+
+  <!-- Step 1 -->
+  @if (step() === 1) {
+    <form [formGroup]="step1" (ngSubmit)="next()" class="card-abstract p-5 flex flex-col gap-4">
+      <label class="form-control">
+        <div class="label"><span class="label-text font-medium">Site name *</span></div>
+        <input type="text" formControlName="name" placeholder="e.g. Brussels HQ" class="input input-bordered w-full input-abstract" />
+      </label>
+      <label class="form-control">
+        <div class="label"><span class="label-text font-medium">Location *</span></div>
+        <input type="text" formControlName="location" placeholder="e.g. Brussels, Belgium" class="input input-bordered w-full input-abstract" />
+        <div class="label"><span class="label-text-alt text-base-content/50">City, country or building address</span></div>
+      </label>
+      <div class="flex justify-end gap-2 mt-2">
+        <a routerLink="/sites" class="btn btn-ghost btn-sm">Cancel</a>
+        <button type="submit" class="btn btn-primary btn-sm" [disabled]="step1.invalid">Continue</button>
+      </div>
+    </form>
+  }
+
+  <!-- Step 2 -->
+  @if (step() === 2) {
+    <form [formGroup]="step2" (ngSubmit)="next()" class="card-abstract p-5 flex flex-col gap-4">
+      <label class="form-control">
+        <div class="label"><span class="label-text font-medium">Assign to tenant *</span></div>
+        <select formControlName="tenant_id" class="select select-bordered w-full input-abstract">
+          <option value="">Select tenant…</option>
+          @for (t of tenants(); track t.id) {
+            <option [value]="t.id">{{ t.name }}</option>
+          }
+        </select>
+      </label>
+      <div class="flex justify-between gap-2 mt-2">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="step.set(1)">Back</button>
+        <button type="submit" class="btn btn-primary btn-sm" [disabled]="step2.invalid">Continue</button>
+      </div>
+    </form>
+  }
+
+  <!-- Step 3 -->
+  @if (step() === 3) {
+    <div class="card-abstract p-5 mb-4">
+      <h3 class="font-semibold mb-3">Review details</h3>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-base-content/60">Name</span><span class="font-medium">{{ step1.value.name }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/60">Location</span><span class="font-medium">{{ step1.value.location }}</span></div>
+        <div class="flex justify-between"><span class="text-base-content/60">Tenant</span><span class="font-medium">{{ tenantName() }}</span></div>
+      </div>
+    </div>
+    @if (error()) {
+      <div role="alert" class="alert alert-error text-sm mb-4"><span>{{ error() }}</span></div>
+    }
+    <div class="flex justify-between gap-2">
+      <button class="btn btn-ghost btn-sm" (click)="step.set(2)">Back</button>
+      <button class="btn btn-primary btn-sm" (click)="create()" [disabled]="saving()">
+        @if (saving()) { <span class="loading loading-spinner loading-xs"></span> }
+        Create Site
+      </button>
+    </div>
+  }
+</div>

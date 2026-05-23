@@ -1,0 +1,38 @@
+<div class="text-sm breadcrumbs mb-4">
+  <ul><li><a routerLink="/tenants">Tenants</a></li><li>New Tenant</li></ul>
+</div>
+
+<div class="max-w-md">
+  <h1 class="text-xl font-bold mb-1">Create Tenant</h1>
+  <p class="text-sm text-base-content/60 mb-6">Set up a new customer account with its own sites and users.</p>
+
+  @if (error()) {
+    <div role="alert" class="alert alert-error alert-sm mb-4"><span class="text-sm">{{ error() }}</span></div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
+    <label class="form-control">
+      <div class="label"><span class="label-text">Organisation name *</span></div>
+      <input type="text" formControlName="name" placeholder="e.g. Acme Corp" class="input input-bordered input-sm" />
+    </label>
+    <label class="form-control">
+      <div class="label"><span class="label-text">Admin email *</span></div>
+      <input type="email" formControlName="admin_email" placeholder="admin@customer.com" class="input input-bordered input-sm" />
+    </label>
+    <label class="form-control">
+      <div class="label"><span class="label-text">Plan *</span></div>
+      <select formControlName="plan" class="select select-bordered select-sm">
+        <option value="community">Community (Free)</option>
+        <option value="pro">Pro (€39/mo)</option>
+        <option value="enterprise">Enterprise (Custom)</option>
+      </select>
+    </label>
+    <div class="flex justify-end gap-2 mt-2">
+      <a routerLink="/tenants" class="btn btn-ghost btn-sm">Cancel</a>
+      <button type="submit" class="btn btn-primary btn-sm" [disabled]="form.invalid || saving()">
+        @if (saving()) { <span class="loading loading-spinner loading-xs"></span> }
+        Create Tenant
+      </button>
+    </div>
+  </form>
+</div>

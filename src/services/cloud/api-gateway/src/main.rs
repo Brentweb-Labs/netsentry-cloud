@@ -2761,6 +2761,13 @@ async fn sensor_auth_middleware(
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
+    let path = request.uri().path();
+
+    // Skip if not a sensor auth path (same logic as other middlewares)
+    if !SENSOR_AUTH_PREFIXES.iter().any(|p| path.starts_with(p)) {
+        return next.run(request).await;
+    }
+
     // Get state from request extensions (set by .with_state())
     let state = match request.extensions().get::<Arc<AppState>>() {
         Some(s) => s.clone(),
@@ -2768,13 +2775,6 @@ async fn sensor_auth_middleware(
             return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": "Internal server error" }))).into_response();
         }
     };
-
-    let path = request.uri().path();
-
-    // Only apply to sensor auth paths
-    if !SENSOR_AUTH_PREFIXES.iter().any(|p| path.starts_with(p)) {
-        return next.run(request).await;
-    }
 
     // Check for X-API-Key header
     let api_key = request
@@ -2881,6 +2881,8 @@ async fn jwt_auth(request: Request<axum::body::Body>, next: Next) -> Response {
 const ALLOWED_PUBLIC_IPS: &[&str] = &["109.133.17.150", "45.86.200.231"];
 
 async fn ip_whitelist_middleware(request: Request<axum::body::Body>, next: Next) -> Response {
+    let path = request.uri().path();
+
     if PUBLIC_PATHS.contains(&request.uri().path()) {
         return next.run(request).await;
     }

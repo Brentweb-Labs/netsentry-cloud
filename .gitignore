@@ -1,2 +1,21 @@
 # rust
 target
+
+# Security - never commit keys or credentials
+*.key
+privatekey
+publickey
+*.pem
+*.crt
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Database
+data/

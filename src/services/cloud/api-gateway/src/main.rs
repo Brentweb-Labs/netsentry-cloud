@@ -167,6 +167,15 @@ struct EveEvent {
     pub fileinfo: Option<FileInfo>,
     #[serde(rename = "processed_at")]
     pub processed_at: Option<BsonDateTime>,
+    // Multi-tenant: tenant_id for event isolation
+    #[serde(rename = "tenant_id", skip_serializing_if = "Option::is_none")]
+    pub tenant_id: Option<String>,
+    // Multi-tenant: sensor_id for event attribution
+    #[serde(rename = "sensor_id", skip_serializing_if = "Option::is_none")]
+    pub sensor_id: Option<String>,
+    // Multi-tenant: site_id for event attribution
+    #[serde(rename = "site_id", skip_serializing_if = "Option::is_none")]
+    pub site_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -3615,8 +3624,12 @@ async fn ingest_suricata_alert(
 
 async fn ingest_traffic_event(
     State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
+    sid: Option<Extension<SensorId>>,
     Json(event): Json<TrafficEvent>,
 ) -> Result<Json<Value>, StatusCode> {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    let sensor_id = sid.map(|Extension(SensorId(s))| s);
     let event_id = event.id.clone();
     let p = &event.payload;
     let eve_event = EveEvent {
@@ -3635,6 +3648,10 @@ async fn ingest_traffic_event(
         tls: p.get("tls").and_then(|v| serde_json::from_value(v.clone()).ok()),
         fileinfo: p.get("fileinfo").and_then(|v| serde_json::from_value(v.clone()).ok()),
         processed_at: Some(BsonDateTime::from_millis(Utc::now().timestamp_millis())),
+        // Multi-tenant fields
+        tenant_id: Some(tenant_id.clone()),
+        sensor_id: sensor_id.clone(),
+        site_id: None, // Can be added if sensor has site info
     };
 
     let _ = state
@@ -3644,9 +3661,10 @@ async fn ingest_traffic_event(
         .insert_one(eve_event)
         .await;
 
-    // Broadcast to dashboard WebSocket clients
+    // Broadcast to dashboard WebSocket clients (with tenant_id for filtering)
     let ws_msg = serde_json::json!({
         "type": "traffic_event",
+        "tenant_id": tenant_id,
         "event_id": &event_id,
         "src_ip": &event.source_ip,
         "dest_ip": &event.dest_ip,
@@ -3670,8 +3688,12 @@ async fn ingest_traffic_event(
 
 async fn ingest_traffic_batch(
     State(state): State<Arc<AppState>>,
+    tid: Option<Extension<TenantId>>,
+    sid: Option<Extension<SensorId>>,
     Json(events): Json<Vec<TrafficEvent>>,
 ) -> Result<Json<Value>, StatusCode> {
+    let tenant_id = tid.map(|Extension(TenantId(t))| t).unwrap_or_else(|| "default".into());
+    let sensor_id = sid.map(|Extension(SensorId(s))| s);
     let count = events.len();
     if count == 0 {
         return Ok(Json(serde_json::json!({ "success": true, "stored": 0 })));
@@ -3698,6 +3720,10 @@ async fn ingest_traffic_batch(
                 tls: p.get("tls").and_then(|v| serde_json::from_value(v.clone()).ok()),
                 fileinfo: p.get("fileinfo").and_then(|v| serde_json::from_value(v.clone()).ok()),
                 processed_at: Some(now_bson),
+                // Multi-tenant fields
+                tenant_id: Some(tenant_id.clone()),
+                sensor_id: sensor_id.clone(),
+                site_id: None,
             }
         })
         .collect();

@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-SecurePassword123!}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
       MONGO_INITDB_DATABASE: idps_database
     volumes:
       - mongodb_data:/data/db
@@ -33,12 +33,13 @@ services:
     restart: unless-stopped
     environment:
       - GATEWAY_MODE=vps
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb:27017/idps_database?authSource=admin
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/idps_database?authSource=admin
       - JWT_SECRET=${JWT_SECRET}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - LOG_LEVEL=info
-      - RASPI_ENDPOINT=${RASPI_ENDPOINT:-http://10.10.0.2:8080}
+      # Sensor connectivity — WireGuard tunnel address of the sensor node
+      - SENSOR_ENDPOINT=${SENSOR_ENDPOINT:-http://10.10.0.2:8080}
       - THREAT_INTEL_URL=http://threat-intel:8094
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
       - STRIPE_PRICE_ID=${STRIPE_PRICE_ID:-}
@@ -50,6 +51,8 @@ services:
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
       - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER:-}
+    # Bind only on WireGuard interface so sensors can reach the API over the tunnel.
+    # Remove "10.10.0.1:" prefix if you need local host access for dev/testing.
     ports:
       - "10.10.0.1:8080:8080"
     networks:
@@ -61,7 +64,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
-      - "traefik.http.routers.idps-api.rule=Host(`idps.brentweb.eu`) && (PathPrefix(`/api/vps`) || PathPrefix(`/api/prevention`) || PathPrefix(`/api/auth`) || PathPrefix(`/ws`))"
+      - "traefik.http.routers.idps-api.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api/vps`) || PathPrefix(`/api/prevention`) || PathPrefix(`/api/auth`) || PathPrefix(`/ws`))"
       - "traefik.http.routers.idps-api.entrypoints=websecure"
       - "traefik.http.routers.idps-api.tls=true"
       - "traefik.http.routers.idps-api.tls.certresolver=letsencrypt"
@@ -85,7 +88,7 @@ services:
     restart: unless-stopped
     environment:
       - SERVICE_MODE=vps
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb:27017/idps_database?authSource=admin
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/idps_database?authSource=admin
       - LOG_LEVEL=info
       - UPDATE_INTERVAL=3600
     ports:
@@ -109,10 +112,10 @@ services:
     container_name: idps-vps-processor
     restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb:27017/idps_database?authSource=admin
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/idps_database?authSource=admin
       - LOG_LEVEL=info
     ports:
-      - "127.0.0.1:8093:8093"
+      - "127.0.0.1:9093:9093"
     networks:
       - idps-net
     depends_on:
@@ -135,7 +138,7 @@ services:
       - NET_ADMIN
     environment:
       - ANALYZER_MODE=vps
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@localhost:27017/idps_database?authSource=admin
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@localhost:27017/idps_database?authSource=admin
       - LOG_LEVEL=info
     volumes:
       - ./data/logs/suricata:/var/log/suricata:ro
@@ -156,7 +159,7 @@ services:
     container_name: idps-console-api
     restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb:27017/idps_database?authSource=admin
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/idps_database?authSource=admin
       - JWT_SECRET=${JWT_SECRET}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
@@ -169,7 +172,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
-      - "traefik.http.routers.idps-console-api.rule=Host(`idps.brentweb.eu`) && PathPrefix(`/api/console`)"
+      - "traefik.http.routers.idps-console-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api/console`)"
       - "traefik.http.routers.idps-console-api.entrypoints=websecure"
       - "traefik.http.routers.idps-console-api.tls=true"
       - "traefik.http.routers.idps-console-api.tls.certresolver=letsencrypt"
@@ -188,13 +191,15 @@ services:
       dockerfile: src/saas/netsentry-console/Dockerfile
     container_name: idps-console-frontend
     restart: unless-stopped
+    ports:
+      - "0.0.0.0:3000:80"
     networks:
       - idps-net
       - proxy
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
-      - "traefik.http.routers.idps-console.rule=Host(`idps.brentweb.eu`) && PathPrefix(`/console`)"
+      - "traefik.http.routers.idps-console.rule=Host(`${DOMAIN}`) && PathPrefix(`/console`)"
       - "traefik.http.routers.idps-console.entrypoints=websecure"
       - "traefik.http.routers.idps-console.tls=true"
       - "traefik.http.routers.idps-console.tls.certresolver=letsencrypt"
@@ -222,13 +227,13 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
-      - "traefik.http.routers.idps-dashboard.rule=Host(`idps.brentweb.eu`)"
+      - "traefik.http.routers.idps-dashboard.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.idps-dashboard.entrypoints=websecure"
       - "traefik.http.routers.idps-dashboard.tls=true"
       - "traefik.http.routers.idps-dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.idps-dashboard.priority=10"
       - "traefik.http.routers.idps-dashboard.middlewares=idps-dashboard-ipallowlist"
-      - "traefik.http.middlewares.idps-dashboard-ipallowlist.ipallowlist.sourcerange=109.133.17.150/32"
+      - "traefik.http.middlewares.idps-dashboard-ipallowlist.ipallowlist.sourcerange=${ALLOWED_IP}/32"
       - "traefik.http.services.idps-dashboard.loadbalancer.server.port=80"
     deploy:
       resources:

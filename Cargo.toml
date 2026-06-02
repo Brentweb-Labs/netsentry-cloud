@@ -3,10 +3,10 @@ resolver = "2"
 members = [
     # Shared libraries
     "src/shared/types",
-    "src/shared/protocols", 
+    "src/shared/protocols",
     "src/shared/utils",
     "src/shared/config",
-    
+
     # Cloud services (VPS)
     "src/services/cloud/packet-analyzer",
     "src/services/cloud/threat-intel",

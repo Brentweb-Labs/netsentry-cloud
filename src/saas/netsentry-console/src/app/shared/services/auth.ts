@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 
-interface LoginResponse { token: string; expires_in: number; }
+interface LoginResponse { access_token: string; }
 
 export interface TokenPayload {
   sub: string; tenant_id: string; org_id: string;
@@ -17,10 +17,10 @@ export class Auth {
   private http = inject(HttpClient);
   private router = inject(Router);
 
-  login(username: string, password: string): Observable<LoginResponse> {
+  login(email: string, password: string): Observable<LoginResponse> {
     return this.http
-      .post<LoginResponse>('/api/auth/login', { username, password })
-      .pipe(tap(r => localStorage.setItem(KEY, r.token)));
+      .post<LoginResponse>('/api/auth/login', { email, password })
+      .pipe(tap(r => localStorage.setItem(KEY, r.access_token)));
   }
 
   logout(): void { localStorage.removeItem(KEY); this.router.navigate(['/signin']); }

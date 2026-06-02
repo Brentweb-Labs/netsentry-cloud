@@ -40,8 +40,8 @@
         <div class="label"><span class="label-text font-medium">Assign to tenant *</span></div>
         <select formControlName="tenant_id" class="select select-bordered w-full input-abstract">
           <option value="">Select tenant…</option>
-          @for (t of tenants(); track t.id) {
-            <option [value]="t.id">{{ t.name }}</option>
+          @for (t of tenants(); track getTenantId(t)) {
+            <option [value]="getTenantId(t)">{{ t.name }}</option>
           }
         </select>
       </label>

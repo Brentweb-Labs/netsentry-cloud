@@ -8,24 +8,32 @@ import { CreateSiteDto } from './dto/create-site.dto';
 export class SitesService {
   constructor(@InjectModel(Site.name) private siteModel: Model<SiteDocument>) {}
 
-  findAll(tenantId?: string) {
-    return this.siteModel.find(tenantId ? { tenantId } : {}).exec();
+  private mapSite(site: any) {
+    if (!site) return null;
+    const { _id, __v, ...rest } = site;
+    return { ...rest, id: _id?.toString?.() || _id };
   }
 
-  create(dto: CreateSiteDto) {
-    return new this.siteModel(dto).save();
+  async findAll(tenantId?: string) {
+    const sites = await this.siteModel.find(tenantId ? { tenantId } : {}).lean().exec();
+    return sites.map(s => this.mapSite(s));
+  }
+
+  async create(dto: CreateSiteDto) {
+    const site = await new this.siteModel(dto).save();
+    return this.mapSite(site.toObject());
   }
 
   async findOne(id: string) {
-    const site = await this.siteModel.findById(id).exec();
+    const site = await this.siteModel.findById(id).lean().exec();
     if (!site) throw new NotFoundException('Site not found');
-    return site;
+    return this.mapSite(site);
   }
 
   async update(id: string, dto: Partial<CreateSiteDto>) {
-    const site = await this.siteModel.findByIdAndUpdate(id, dto, { new: true }).exec();
+    const site = await this.siteModel.findByIdAndUpdate(id, dto, { new: true }).lean().exec();
     if (!site) throw new NotFoundException('Site not found');
-    return site;
+    return this.mapSite(site);
   }
 
   async remove(id: string) {

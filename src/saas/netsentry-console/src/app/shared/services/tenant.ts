@@ -3,9 +3,9 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface Tenant {
-  id: string; name: string; plan: 'community' | 'pro' | 'enterprise';
+  _id?: string; id?: string; name: string; plan: 'starter' | 'pro' | 'enterprise';
   status: 'active' | 'suspended' | 'pending';
-  site_count: number; user_count: number; admin_email: string; created_at: string;
+  site_count?: number; user_count?: number; admin_email?: string; created_at?: string; createdAt?: string;
 }
 
 export interface TenantUser {

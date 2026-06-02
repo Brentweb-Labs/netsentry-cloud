@@ -6,6 +6,7 @@ import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 
 @Component({
   selector: 'app-sites-list',
+  standalone: true,
   imports: [RouterLink, StatusBadge, EmptyState],
   templateUrl: './sites-list.html',
   styles: ``,

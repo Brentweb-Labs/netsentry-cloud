@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 export type SiteStatus = 'online' | 'degraded' | 'offline' | 'unknown';
 
 export interface Site {
-  id: string; name: string; location: string; tenant_id: string;
+  _id?: string; id?: string; name: string; location: string; tenant_id: string;
   status: SiteStatus; sensor_count: number; active_sensors: number;
   alerts_last_24h: number; created_at: string; updated_at: string;
 }

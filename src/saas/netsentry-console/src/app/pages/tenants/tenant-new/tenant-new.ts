@@ -17,7 +17,7 @@ export class TenantNew {
   form = this.fb.nonNullable.group({
     name:        ['', Validators.required],
     admin_email: ['', [Validators.required, Validators.email]],
-    plan:        ['pro' as 'community'|'pro'|'enterprise', Validators.required],
+    plan:        ['starter' as 'starter'|'pro'|'enterprise', Validators.required],
   });
 
   saving = signal(false);
@@ -27,7 +27,7 @@ export class TenantNew {
     if (this.form.invalid) return;
     this.saving.set(true); this.error.set('');
     this.svc.create(this.form.getRawValue()).subscribe({
-      next: t => this.router.navigate(['/tenants', t.id]),
+      next: t => this.router.navigate(['/tenants', t._id || t.id]),
       error: e => { this.error.set(e?.error?.message ?? 'Failed to create tenant'); this.saving.set(false); },
     });
   }

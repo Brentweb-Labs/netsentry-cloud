@@ -53,7 +53,7 @@
               <td><app-status-badge [status]="t.status" /></td>
               <td class="text-xs text-base-content/60">{{ t.created_at | date:'mediumDate' }}</td>
               <td class="text-right">
-                <a [routerLink]="['/tenants', t.id]" class="btn btn-ghost btn-xs gap-1">
+                <a [routerLink]="['/tenants', t._id || t.id]" class="btn btn-ghost btn-xs gap-1">
                   Manage
                   <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>

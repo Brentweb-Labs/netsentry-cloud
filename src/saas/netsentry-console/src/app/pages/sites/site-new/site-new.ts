@@ -28,9 +28,27 @@ export class SiteNew implements OnInit {
 
   readonly stepLabels = ['Details', 'Tenant', 'Confirm'];
 
-  ngOnInit() { this.tenantSvc.list().subscribe({ next: t => this.tenants.set(t) }); }
+  ngOnInit() {
+    this.tenantSvc.list().subscribe({
+      next: t => {
+        this.tenants.set(t);
+        // Auto-select first tenant if available
+        if (t.length === 1) {
+          this.step2.patchValue({ tenant_id: t[0]._id || t[0].id || '' });
+        }
+      }
+    });
+  }
 
-  tenantName(): string { return this.tenants().find(t => t.id === this.step2.value.tenant_id)?.name ?? ''; }
+  getTenantId(t: Tenant): string {
+    return (t._id || t.id || '') as string;
+  }
+
+  tenantName(): string {
+    const tenantId = this.step2.value.tenant_id;
+    if (!tenantId) return '';
+    return this.tenants().find(t => this.getTenantId(t) === tenantId)?.name ?? '';
+  }
 
   next() {
     if (this.step() === 1 && this.step1.valid) this.step.set(2);
@@ -40,7 +58,7 @@ export class SiteNew implements OnInit {
   create() {
     this.saving.set(true); this.error.set('');
     this.svc.create({ ...this.step1.getRawValue(), tenant_id: this.step2.value.tenant_id! }).subscribe({
-      next: s => this.router.navigate(['/sites', s.id]),
+      next: s => this.router.navigate(['/sites', s._id || s.id]),
       error: e => { this.error.set(e?.error?.message ?? 'Failed to create site'); this.saving.set(false); },
     });
   }

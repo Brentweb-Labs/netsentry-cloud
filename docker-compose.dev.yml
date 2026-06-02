@@ -1,0 +1,491 @@
+# Local development compose file - brings both cloud and sensor online on your laptop
+# Run with: docker compose -f docker-compose.dev.yml up
+# Uses Docker networks instead of WireGuard for local development
+# Includes all cloud services + all sensor services
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: idps-mongodb-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-SecurePassword123!}
+      MONGO_INITDB_DATABASE: idps_database
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - idps-dev
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # ============================================================================
+  # CLOUD SERVICES
+  # ============================================================================
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: src/services/cloud/api-gateway/Dockerfile
+    container_name: idps-api-gateway-dev
+    restart: unless-stopped
+    environment:
+      - GATEWAY_MODE=dev
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb:27017/idps_database?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - LOG_LEVEL=debug
+      # Point to the simulated edge device (sensor container)
+      - RASPI_ENDPOINT=http://edge-sensor:8080
+      - THREAT_INTEL_URL=http://threat-intel:8094
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PRICE_ID=${STRIPE_PRICE_ID:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER:-}
+    ports:
+      - "127.0.0.1:9080:8080"
+    networks:
+      - idps-dev
+      - sensor-net
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  threat-intel:
+    build:
+      context: .
+      dockerfile: src/services/cloud/threat-intel/Dockerfile
+    container_name: idps-threat-intel-dev
+    restart: unless-stopped
+    environment:
+      - SERVICE_MODE=dev
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb:27017/idps_database?authSource=admin
+      - LOG_LEVEL=debug
+      - UPDATE_INTERVAL=3600
+    ports:
+      - "127.0.0.1:9094:8094"
+    networks:
+      - idps-dev
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  vps-processor:
+    build:
+      context: .
+      dockerfile: src/services/cloud/vps-processor/Dockerfile
+    container_name: idps-vps-processor-dev
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb:27017/idps_database?authSource=admin
+      - LOG_LEVEL=debug
+    ports:
+      - "127.0.0.1:9093:8093"
+    networks:
+      - idps-dev
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  packet-analyzer:
+    build:
+      context: .
+      dockerfile: src/services/cloud/packet-analyzer/Dockerfile
+    container_name: idps-packet-analyzer-dev
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      - ANALYZER_MODE=dev
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@localhost:27017/idps_database?authSource=admin
+      - LOG_LEVEL=debug
+    volumes:
+      - ./data/logs/suricata:/var/log/suricata:ro
+      - ./logs/packet-analyzer:/var/log/idps/packet-analyzer
+    depends_on:
+      - mongodb
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  console-api:
+    build:
+      context: .
+      dockerfile: src/services/cloud/console-api/Dockerfile
+    container_name: idps-console-api-dev
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://idps_app:AppSecure123!@mongodb:27017/idps_database?authSource=idps_database
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - LOG_LEVEL=debug
+    ports:
+      - "127.0.0.1:9095:8095"
+    networks:
+      - idps-dev
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  console-frontend:
+    build:
+      context: .
+      dockerfile: src/saas/netsentry-console/Dockerfile
+    container_name: idps-console-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:80"
+    networks:
+      - idps-dev
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  vps-dashboard:
+    build:
+      context: .
+      dockerfile: src/tools/dashboard/Dockerfile
+    container_name: idps-vps-dashboard-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9001:80"
+    networks:
+      - idps-dev
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ============================================================================
+  # EDGE SENSOR SERVICES (actual sensor from ../sensor repo)
+  # ============================================================================
+
+  # Edge MongoDB - local database for sensor
+  mongodb-edge:
+    image: mongo:6.0
+    container_name: idps-mongodb-edge-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-SecurePassword123!}
+      MONGO_INITDB_DATABASE: idps_database
+    volumes:
+      - mongodb_edge_data:/data/db
+    networks:
+      - idps-dev
+      - sensor-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Edge Redis - cache for sensor
+  redis-edge:
+    image: redis:7-alpine
+    container_name: idps-redis-edge-dev
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-RedisSecure123!} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_edge_data:/data
+    networks:
+      - sensor-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-RedisSecure123!}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # Network Filter - allows other containers to bind to ports
+  network-filter:
+    build:
+      context: ../sensor
+      dockerfile: src/services/edge/network-filter/Dockerfile
+    container_name: idps-network-filter-dev
+    restart: unless-stopped
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      - FILTER_MODE=bridge
+      - LOG_LEVEL=debug
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb-edge:27017/idps_database?authSource=admin
+    networks:
+      - sensor-net
+    depends_on:
+      mongodb-edge:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Suricata - IDS/IPS engine (disabled in dev mode - configure properly if needed)
+  # Uncomment below to enable; requires proper config file mount
+  # suricata:
+  #   image: jasonish/suricata:7.0
+  #   container_name: idps-suricata-dev
+  #   restart: unless-stopped
+  #   cap_add:
+  #     - NET_RAW
+  #     - NET_ADMIN
+  #   command: ["-c", "/etc/suricata/suricata.yaml", "-i", "eth0"]
+  #   environment:
+  #     - SURICATA_RUN_MODE=single
+  #     - SURICATA_IFACE=eth0
+  #     - SURICATA_CONFIG_DIR=/etc/suricata
+  #     - SURICATA_LOG_DIR=/var/log/suricata
+  #   volumes:
+  #     - ../sensor/config/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+  #     - suricata_logs:/var/log/suricata
+  #   networks:
+  #     - sensor-net
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 1G
+  #       reservations:
+  #         memory: 512M
+
+  # Raspberry Pi Collector - processes edge data and sends to cloud
+  raspi-collector:
+    build:
+      context: ../sensor
+      dockerfile: src/services/edge/raspi-collector/Dockerfile
+    container_name: idps-raspi-collector-dev
+    restart: unless-stopped
+    environment:
+      - COLLECTOR_MODE=edge
+      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-SecurePassword123!}@mongodb-edge:27017/idps_database?authSource=admin
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-RedisSecure123!}@redis-edge:6379
+      - VPS_ENDPOINT=http://api-gateway:8080
+      - VPS_WS_URL=ws://api-gateway:8080/ws/raspi
+      - API_KEY=${API_KEY:-dev-sensor-key}
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - NETWORK_FILTER_URL=http://network-filter:8092/api/v1
+      - RULE_ENGINE_URL=http://rule-engine:8094/api/v1
+      - SURICATA_EVE_PATH=/var/log/suricata/eve.json
+      - LOG_LEVEL=debug
+    ports:
+      - "127.0.0.1:9091:8091"
+    networks:
+      - idps-dev
+      - sensor-net
+    volumes:
+      - suricata_logs:/var/log/suricata:ro
+    depends_on:
+      mongodb-edge:
+        condition: service_healthy
+      redis-edge:
+        condition: service_healthy
+      api-gateway:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Packet Processor - captures packets and streams to VPS
+  packet-processor:
+    build:
+      context: ../sensor
+      dockerfile: src/services/edge/packet-processor/Dockerfile
+    container_name: idps-packet-processor-dev
+    restart: unless-stopped
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      - CAPTURE_INTERFACE=eth0
+      - VPS_ENDPOINT=http://api-gateway:8080
+      - PACKET_STREAM_WS_URL=ws://api-gateway:8080/ws/packets
+      - API_KEY=${API_KEY:-dev-sensor-key}
+      - NETWORK_FILTER_URL=http://network-filter:8092/api/v1
+      - LOG_LEVEL=debug
+    networks:
+      - sensor-net
+    depends_on:
+      mongodb-edge:
+        condition: service_healthy
+      redis-edge:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Rule Engine - receives rules from cloud and manages Suricata
+  rule-engine:
+    build:
+      context: ../sensor
+      dockerfile: src/services/edge/rule-engine/Dockerfile
+    container_name: idps-rule-engine-dev
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - RULE_ENGINE_PORT=8094
+      - VPS_WS_URL=ws://api-gateway:8080/ws/rules
+      - JWT_SECRET=${JWT_SECRET}
+      - LOG_LEVEL=debug
+    ports:
+      - "127.0.0.1:9092:8094"
+    networks:
+      - idps-dev
+      - sensor-net
+    volumes:
+      - rule_engine_rules:/etc/suricata/rules
+    depends_on:
+      - api-gateway
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  # Telemetry Service - collects hardware metrics
+  # Note: In dev mode, this won't have access to /proc and /sys, so metrics will be limited
+  idps-telemetry:
+    build:
+      context: ../sensor
+      dockerfile: src/services/edge/telemetry/Dockerfile
+    container_name: idps-telemetry-dev
+    restart: unless-stopped
+    environment:
+      - DEVICE_ID=${DEVICE_ID:-dev-sensor-01}
+      - VPS_URL=http://api-gateway:8080
+      - JWT_SECRET=${JWT_SECRET:-}
+      - COLLECTION_INTERVAL_SECS=10
+      - TELEMETRY_PORT=8096
+      - RUST_LOG=debug
+    ports:
+      - "127.0.0.1:9096:8096"
+    networks:
+      - idps-dev
+      - sensor-net
+    depends_on:
+      - raspi-collector
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node Exporter - Prometheus metrics (disabled in dev, would need host mounts)
+  # Uncomment below if you have Docker with proper volume mount permissions
+  # node-exporter:
+  #   image: prom/node-exporter:latest
+  #   container_name: idps-node-exporter-dev
+  #   restart: unless-stopped
+  #   command:
+  #     - '--path.rootfs=/host'
+  #     - '--path.procfs=/host/proc'
+  #     - '--path.sysfs=/host/sys'
+  #     - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+  #   ports:
+  #     - "127.0.0.1:9100:9100"
+  #   networks:
+  #     - sensor-net
+  #   volumes:
+  #     - /:/host:ro,rslave
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 128M
+  #       reservations:
+  #         memory: 64M
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_edge_data:
+    driver: local
+  redis_edge_data:
+    driver: local
+  suricata_logs:
+    driver: local
+  rule_engine_rules:
+    driver: local
+
+networks:
+  idps-dev:
+    name: idps-dev
+    driver: bridge
+  sensor-net:
+    name: sensor-net
+    driver: bridge

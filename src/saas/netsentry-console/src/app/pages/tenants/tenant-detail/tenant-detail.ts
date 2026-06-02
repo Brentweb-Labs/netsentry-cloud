@@ -47,12 +47,14 @@ export class TenantDetail implements OnInit {
     });
   }
 
-  loadUsers() { const id = this.tenant()!.id; this.svc.users(id).subscribe({ next: d => this.users.set(d) }); }
-  loadKeys()  { const id = this.tenant()!.id; this.svc.apiKeys(id).subscribe({ next: d => this.apiKeys.set(d) }); }
+  private getTenantId(): string { return this.tenant()!._id || this.tenant()!.id || ''; }
+
+  loadUsers() { const id = this.getTenantId(); this.svc.users(id).subscribe({ next: d => this.users.set(d) }); }
+  loadKeys()  { const id = this.getTenantId(); this.svc.apiKeys(id).subscribe({ next: d => this.apiKeys.set(d) }); }
 
   invite() {
     if (this.inviteForm.invalid) return;
-    this.svc.invite(this.tenant()!.id, this.inviteForm.getRawValue()).subscribe({ next: () => { this.loadUsers(); this.inviteForm.reset({ role:'viewer' }); } });
+    this.svc.invite(this.getTenantId(), this.inviteForm.getRawValue()).subscribe({ next: () => { this.loadUsers(); this.inviteForm.reset({ role:'viewer' }); } });
   }
 
   promptDeactivate(uid: string) {
@@ -63,13 +65,13 @@ export class TenantDetail implements OnInit {
   deactivate() {
     const uid = this.deactivateTarget();
     if (!uid) return;
-    this.svc.deactivate(this.tenant()!.id, uid).subscribe({ next: () => { this.loadUsers(); this.deactivateTarget.set(null); } });
+    this.svc.deactivate(this.getTenantId(), uid).subscribe({ next: () => { this.loadUsers(); this.deactivateTarget.set(null); } });
   }
 
   createKey() {
     if (this.newKeyForm.invalid) return;
-    this.svc.createApiKey(this.tenant()!.id, this.newKeyForm.value.name!).subscribe({ next: () => { this.loadKeys(); this.newKeyForm.reset(); this.newKeyVisible.set(false); } });
+    this.svc.createApiKey(this.getTenantId(), this.newKeyForm.value.name!).subscribe({ next: () => { this.loadKeys(); this.newKeyForm.reset(); this.newKeyVisible.set(false); } });
   }
 
-  revokeKey(kid: string) { this.svc.revokeApiKey(this.tenant()!.id, kid).subscribe({ next: () => this.loadKeys() }); }
+  revokeKey(kid: string) { this.svc.revokeApiKey(this.getTenantId(), kid).subscribe({ next: () => this.loadKeys() }); }
 }

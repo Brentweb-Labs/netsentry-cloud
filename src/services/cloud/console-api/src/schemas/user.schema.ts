@@ -8,14 +8,23 @@ export class User {
   @Prop({ required: true, unique: true })
   email: string;
 
+  @Prop()
+  name: string;
+
   @Prop({ required: true })
   passwordHash: string;
 
-  @Prop({ default: 'admin', enum: ['superadmin', 'admin', 'viewer'] })
+  @Prop({ default: 'viewer', enum: ['tenant_admin', 'operator', 'viewer'] })
   role: string;
 
   @Prop()
   tenantId: string;
+
+  @Prop({ default: 'active', enum: ['active', 'invited', 'deactivated'] })
+  status: string;
+
+  @Prop({ nullable: true })
+  lastLogin: Date | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

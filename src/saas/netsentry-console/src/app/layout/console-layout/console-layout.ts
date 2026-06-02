@@ -4,6 +4,7 @@ import { ConsoleTopbar } from '../console-topbar/console-topbar';
 
 @Component({
   selector: 'app-console-layout',
+  standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, ConsoleTopbar],
   templateUrl: './console-layout.html',
   styles: ``,

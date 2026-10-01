@@ -41,7 +41,7 @@ export class SensorConfig implements OnInit {
     privateKey: '',
     publicKey: '',
     vpsPublicKey: '',
-    vpsEndpoint: 'https://idps.brentweb.eu',
+    vpsEndpoint: location.origin,
     localIp: '10.10.0.2',
   });
   generatedKeys = signal(false);

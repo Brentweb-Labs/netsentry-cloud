@@ -151,10 +151,26 @@ pub async fn process_events(state: &AppState, ident: &SensorIdentity, raw: Vec<s
     let tenant_settings = settings::load(state, &ident.tenant_id).await;
     let findings = collect_findings(state, ident, &tenant_settings, &events);
 
-    let mut alert_docs = Vec::new();
-    for (idx, finding) in findings.into_iter().take(MAX_ALERTS_PER_REQUEST) {
-        let (event, _) = &events[idx];
-        let decision = prevention::handle_finding(state, ident, &tenant_settings, &finding).await;
+    let items: Vec<(&TrafficEvent, Finding)> = findings
+        .into_iter()
+        .take(MAX_ALERTS_PER_REQUEST)
+        .map(|(idx, f)| (&events[idx].0, f))
+        .collect();
+    summary.alerts = raise_findings(state, ident, &tenant_settings, items).await;
+    summary
+}
+
+/// Apply the tenant policy to each finding, store the alerts and notify dashboards.
+/// Returns the number of alerts raised.
+pub async fn raise_findings(
+    state: &AppState,
+    ident: &SensorIdentity,
+    settings: &TenantSettings,
+    items: Vec<(&TrafficEvent, Finding)>,
+) -> usize {
+    let mut alert_docs = Vec::with_capacity(items.len());
+    for (event, finding) in items {
+        let decision = prevention::handle_finding(state, ident, settings, &finding).await;
         let label = match decision {
             prevention::Decision::AutoBlock => "auto_blocked",
             prevention::Decision::Propose => "block_proposed",
@@ -167,14 +183,54 @@ pub async fn process_events(state: &AppState, ident: &SensorIdentity, raw: Vec<s
         state.notify_dashboard(&ident.tenant_id, msg);
         alert_docs.push(d);
     }
-    summary.alerts = alert_docs.len();
-    Metrics::inc(&state.metrics.alerts_total, alert_docs.len() as u64);
-    if !alert_docs.is_empty() {
+    let n = alert_docs.len();
+    Metrics::inc(&state.metrics.alerts_total, n as u64);
+    if n > 0 {
         if let Err(err) = state.store.coll(ALERTS).insert_many(alert_docs).await {
             tracing::warn!("storing alerts failed: {err}");
         }
     }
-    summary
+    n
+}
+
+/// Turn the threshold alerts a sensor embeds in its telemetry report into
+/// alert documents. Identity always comes from the API key, never the body.
+pub fn telemetry_alert_docs(tenant_id: &str, sensor_id: &str, body: &serde_json::Value) -> Vec<Document> {
+    let Some(list) = body.get("alerts").and_then(|a| a.as_array()) else {
+        return vec![];
+    };
+    list.iter()
+        .take(20)
+        .filter_map(|a| {
+            let msg: String = a.get("message")?.as_str()?.chars().take(300).collect();
+            let metric: String = a
+                .get("metric")
+                .and_then(|m| m.as_str())
+                .unwrap_or("metric")
+                .chars()
+                .take(64)
+                .collect();
+            let severity = match a.get("severity").and_then(|s| s.as_str()).unwrap_or("") {
+                "critical" => 1,
+                "high" | "error" => 2,
+                "warning" | "medium" => 3,
+                _ => 4,
+            };
+            Some(doc! {
+                "tenant_id": tenant_id,
+                "sensor_id": sensor_id,
+                "ts": bdt_now(),
+                "signature": msg,
+                "category": format!("Sensor health: {metric}"),
+                "severity": severity as i32,
+                "severity_label": severity_label(severity),
+                "source": "telemetry",
+                "action": "alert",
+                "decision": "n/a",
+                "processed_at": bdt_now(),
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -207,6 +263,25 @@ mod tests {
         assert_eq!(d.get_str("sensor_id").unwrap(), "sensor-9");
         assert_eq!(d.get_i32("src_port").unwrap(), 4444);
         assert_eq!(d.get_document("payload").unwrap().get_i64("a").unwrap(), 1);
+    }
+
+    #[test]
+    fn telemetry_alerts_become_scoped_alert_docs() {
+        let body = json!({
+            "sensor_id": "spoofed", "tenant_id": "spoofed",
+            "alerts": [
+                {"metric": "cpu", "severity": "critical", "message": "CPU 99%"},
+                {"metric": "disk", "severity": "warning", "message": "Disk 85%"},
+                {"metric": "x"}
+            ]
+        });
+        let docs = telemetry_alert_docs("t1", "s1", &body);
+        assert_eq!(docs.len(), 2);
+        assert_eq!(docs[0].get_str("tenant_id").unwrap(), "t1");
+        assert_eq!(docs[0].get_str("sensor_id").unwrap(), "s1");
+        assert_eq!(docs[0].get_i32("severity").unwrap(), 1);
+        assert_eq!(docs[1].get_str("severity_label").unwrap(), "medium");
+        assert!(telemetry_alert_docs("t1", "s1", &json!({"metrics": {}})).is_empty());
     }
 
     #[test]

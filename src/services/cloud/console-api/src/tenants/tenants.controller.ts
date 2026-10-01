@@ -1,5 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
@@ -8,7 +10,8 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { ApiKeyResponseDto, CreateApiKeyResponseDto } from './dto/api-key-response.dto';
 import { CreateWireGuardConfigDto, SensorConfigResponseDto } from './dto/wireguard-config.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('platform_admin')
 @Controller('api/console/tenants')
 export class TenantsController {
   constructor(private tenantsService: TenantsService) {}

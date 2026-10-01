@@ -54,6 +54,8 @@ async fn health_is_public() {
 
 #[tokio::test]
 async fn ingest_requires_api_key_header() {
+    let get = Request::get("/api/prevention/blocked").body(Body::empty()).unwrap();
+    assert_eq!(status(get).await, StatusCode::UNAUTHORIZED);
     for path in ["/api/traffic", "/api/traffic/batch", "/api/telemetry"] {
         let r = Request::post(path)
             .header("content-type", "application/json")
@@ -70,6 +72,10 @@ async fn api_key_in_query_string_is_not_accepted() {
         .body(Body::from("{}"))
         .unwrap();
     assert_eq!(status(r).await, StatusCode::UNAUTHORIZED);
+    let get = Request::get("/api/prevention/blocked?api_key=nss_abc")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(status(get).await, StatusCode::UNAUTHORIZED);
     let ws = Request::get("/ws/raspi?api_key=nss_abc")
         .header("connection", "upgrade")
         .header("upgrade", "websocket")

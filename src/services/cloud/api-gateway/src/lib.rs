@@ -36,15 +36,23 @@ pub async fn run() -> Result<()> {
     // Wait for MongoDB (compose start-up ordering is best effort).
     let mut attempt = 0;
     loop {
-        match store.ensure_indexes(cfg.event_retention_days).await {
-            Ok(()) => break,
+        match client
+            .database("admin")
+            .run_command(mongodb::bson::doc! { "ping": 1 })
+            .await
+        {
+            Ok(_) => break,
             Err(e) if attempt < 30 => {
                 attempt += 1;
                 tracing::warn!("waiting for MongoDB ({attempt}/30): {e}");
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
             }
-            Err(e) => return Err(e),
+            Err(e) => return Err(e.into()),
         }
+    }
+    // Index problems (e.g. a changed TTL on an existing index) must not stop ingest.
+    if let Err(e) = store.ensure_indexes(cfg.event_retention_days).await {
+        tracing::warn!("ensuring indexes failed: {e}");
     }
 
     let limiter = ratelimit::RateLimiter::new(cfg.redis_url.as_deref()).await;

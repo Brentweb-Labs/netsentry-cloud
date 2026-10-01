@@ -6,6 +6,16 @@ import { Sensor, SensorDocument } from '../schemas/sensor.schema';
 import { Tenant, TenantDocument } from '../schemas/tenant.schema';
 import { CreateSensorDto, UpdateSensorDto } from './dto/sensor.dto';
 
+const SAFE_FIELDS = '-apiKeyHash -commandHmacSecret';
+
+export function newApiKey(): string {
+  return `nss_${crypto.randomBytes(24).toString('hex')}`;
+}
+
+export function hashApiKey(key: string): string {
+  return crypto.createHash('sha256').update(key).digest('hex');
+}
+
 @Injectable()
 export class SensorsService {
   constructor(
@@ -15,24 +25,26 @@ export class SensorsService {
 
   async findAll(tenantId: string) {
     return this.sensorModel.find({ tenantId })
-      .select('-apiKey')
+      .select(SAFE_FIELDS)
       .sort({ createdAt: -1 })
       .exec();
   }
 
   async findOne(sensorId: string, tenantId: string) {
     const sensor = await this.sensorModel.findOne({ sensorId, tenantId })
-      .select('-apiKey')
+      .select(SAFE_FIELDS)
       .exec();
     if (!sensor) throw new NotFoundException('Sensor not found');
     return sensor;
   }
 
   async findOneByApiKey(apiKey: string): Promise<SensorDocument | null> {
-    return this.sensorModel.findOne({ apiKey, status: { $ne: 'revoked' } }).exec();
+    return this.sensorModel.findOne({ apiKeyHash: hashApiKey(apiKey), status: { $ne: 'revoked' } }).exec();
   }
 
-  async create(dto: CreateSensorDto): Promise<{ sensorId: string; apiKey: string }> {
+  async create(
+    dto: CreateSensorDto,
+  ): Promise<{ sensorId: string; apiKey: string; commandHmacSecret: string }> {
     // Check sensor limit for tenant
     const tenant = await this.tenantModel.findById(dto.tenantId).exec();
     let currentCount = 0;
@@ -50,7 +62,8 @@ export class SensorsService {
     }
 
     const sensorId = crypto.randomUUID();
-    const apiKey = `nss_${crypto.randomBytes(24).toString('hex')}`;
+    const apiKey = newApiKey();
+    const commandHmacSecret = crypto.randomBytes(32).toString('hex');
 
     const sensor = new this.sensorModel({
       sensorId,
@@ -59,11 +72,12 @@ export class SensorsService {
       siteId: dto.siteId,
       location: dto.location,
       hardwareInfo: dto.hardwareInfo,
-      apiKey,
+      apiKeyHash: hashApiKey(apiKey),
+      commandHmacSecret,
       status: 'pending',
-      autoBlockEnabled: true,
+      autoBlockEnabled: false,
       config: {
-        autoBlockEnabled: true,
+        autoBlockEnabled: false,
         blockDurationHours: 24,
         minThreatLevel: 1,
         whitelist: [],
@@ -81,7 +95,7 @@ export class SensorsService {
       await tenant.save();
     }
 
-    return { sensorId, apiKey };
+    return { sensorId, apiKey, commandHmacSecret };
   }
 
   async update(sensorId: string, tenantId: string, dto: UpdateSensorDto) {
@@ -89,7 +103,7 @@ export class SensorsService {
       { sensorId, tenantId },
       dto,
       { new: true }
-    ).select('-apiKey').exec();
+    ).select(SAFE_FIELDS).exec();
 
     if (!sensor) throw new NotFoundException('Sensor not found');
     return sensor;
@@ -100,7 +114,7 @@ export class SensorsService {
       { sensorId, tenantId },
       { status: 'revoked' },
       { new: true }
-    ).select('-apiKey').exec();
+    ).select(SAFE_FIELDS).exec();
 
     if (!sensor) throw new NotFoundException('Sensor not found');
 
@@ -118,11 +132,11 @@ export class SensorsService {
     const sensor = await this.sensorModel.findOne({ sensorId, tenantId }).exec();
     if (!sensor) throw new NotFoundException('Sensor not found');
 
-    const newApiKey = `nss_${crypto.randomBytes(24).toString('hex')}`;
-    sensor.apiKey = newApiKey;
+    const apiKey = newApiKey();
+    sensor.apiKeyHash = hashApiKey(apiKey);
     await sensor.save();
 
-    return { apiKey: newApiKey };
+    return { apiKey };
   }
 
   async updateLastConnected(sensorId: string, publicIp?: string) {

@@ -17,8 +17,22 @@ export class Sensor {
   @Prop()
   siteId: string;
 
+  /** SHA-256 (hex) of the sensor API key; the key itself is shown once and never stored. */
   @Prop({ required: true })
-  apiKey: string;
+  apiKeyHash: string;
+
+  /** Secret used to HMAC-sign commands the gateway sends to this sensor. */
+  @Prop({ required: true })
+  commandHmacSecret: string;
+
+  @Prop()
+  hostname: string;
+
+  @Prop()
+  arch: string;
+
+  @Prop({ enum: ['span', 'inline'] })
+  mode: string;
 
   @Prop({ default: 'pending', enum: ['pending', 'active', 'inactive', 'revoked'] })
   status: string;
@@ -64,5 +78,5 @@ export class Sensor {
 export const SensorSchema = SchemaFactory.createForClass(Sensor);
 
 SensorSchema.index({ tenantId: 1 });
-SensorSchema.index({ apiKey: 1 });
+SensorSchema.index({ apiKeyHash: 1 });
 SensorSchema.index({ status: 1 });

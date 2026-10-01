@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException }
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { Tenant, TenantDocument, WireGuardConfig } from '../schemas/tenant.schema';
 import { User, UserDocument } from '../schemas/user.schema';
 import { CreateTenantDto } from './dto/create-tenant.dto';
@@ -83,16 +84,17 @@ export class TenantsService {
     const existing = await this.userModel.findOne({ email: dto.email, tenantId }).exec();
     if (existing) throw new ConflictException('User already exists in this tenant');
 
+    const temporaryPassword = crypto.randomBytes(12).toString('base64url');
     const user = await this.userModel.create({
       email: dto.email,
       name: dto.name,
       role: dto.role,
       tenantId,
       status: 'invited',
-      passwordHash: crypto.randomBytes(1).toString('hex'),
+      passwordHash: await bcrypt.hash(temporaryPassword, 12),
     });
 
-    return this.mapUser(user);
+    return { ...this.mapUser(user), temporary_password: temporaryPassword };
   }
 
   async deactivateUser(tenantId: string, userId: string): Promise<void> {

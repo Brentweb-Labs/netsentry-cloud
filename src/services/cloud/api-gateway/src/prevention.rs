@@ -138,11 +138,6 @@ fn send_unblock(state: &AppState, tenant_id: &str, id: &str, ip: &IpAddr, reason
         "unblock_command",
         &json!({ "id": id, "ip": ip.to_string(), "reason": reason }),
     );
-    state.registry.send_to_tenant(
-        tenant_id,
-        "rule_update",
-        &json!({ "rule_id": rule_id(ip), "action": "remove", "description": reason }),
-    );
 }
 
 pub struct NewBlock<'a> {

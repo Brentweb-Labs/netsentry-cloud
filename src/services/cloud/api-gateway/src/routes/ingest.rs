@@ -3,10 +3,11 @@
 use crate::auth::{touch_sensor, SensorAuth};
 use crate::error::{ApiError, ApiResult};
 use crate::pipeline::{self, MAX_BATCH};
-use crate::state::SharedState;
-use crate::store::{bdt_now, TELEMETRY};
+use crate::state::{Metrics, SharedState};
+use crate::store::{bdt_now, doc_to_json, ALERTS, BLOCKED_IPS, TELEMETRY};
 use axum::extract::State;
 use axum::Json;
+use futures_util::TryStreamExt;
 use mongodb::bson::{self, doc, Bson};
 use serde_json::{json, Value};
 
@@ -67,9 +68,49 @@ pub async fn telemetry(
         })
         .await?;
     touch_sensor(&state, &ident.sensor_id).await;
+    let alerts = pipeline::telemetry_alert_docs(&ident.tenant_id, &ident.sensor_id, &body);
+    let alert_count = alerts.len();
+    if !alerts.is_empty() {
+        Metrics::inc(&state.metrics.alerts_total, alert_count as u64);
+        for a in &alerts {
+            let mut msg = doc_to_json(a);
+            msg["type"] = json!("alert");
+            state.notify_dashboard(&ident.tenant_id, msg);
+        }
+        if let Err(e) = state.store.coll(ALERTS).insert_many(alerts).await {
+            tracing::warn!("storing telemetry alerts failed: {e}");
+        }
+    }
     state.notify_dashboard(
         &ident.tenant_id,
         json!({ "type": "telemetry", "sensor_id": ident.sensor_id, "data": body }),
     );
-    Ok(Json(json!({ "success": true, "sensor_id": ident.sensor_id })))
+    Ok(Json(
+        json!({ "success": true, "sensor_id": ident.sensor_id, "alerts": alert_count }),
+    ))
+}
+
+/// `GET /api/prevention/blocked` - the sensor's tenant's active blocks, used by
+/// sensors to resync after a restart. Shape: `{"data": [{ip, reason, severity, expires_at}]}`.
+pub async fn active_blocks(State(state): State<SharedState>, SensorAuth(ident): SensorAuth) -> ApiResult<Json<Value>> {
+    let recs: Vec<mongodb::bson::Document> = state
+        .store
+        .coll(BLOCKED_IPS)
+        .find(doc! { "tenant_id": &ident.tenant_id, "status": "active", "expires_at": { "$gt": bdt_now() } })
+        .limit(5000)
+        .await?
+        .try_collect()
+        .await?;
+    let data: Vec<Value> = recs
+        .iter()
+        .map(|r| {
+            json!({
+                "ip": r.get_str("ip").unwrap_or(""),
+                "reason": r.get_str("reason").unwrap_or(""),
+                "severity": r.get_i32("severity").unwrap_or(0),
+                "expires_at": r.get_datetime("expires_at").map(|d| d.timestamp_millis() / 1000).unwrap_or(0),
+            })
+        })
+        .collect();
+    Ok(Json(json!({ "data": data })))
 }

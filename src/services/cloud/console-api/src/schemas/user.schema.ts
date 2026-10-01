@@ -5,7 +5,7 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true, collection: 'users' })
 export class User {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, lowercase: true, trim: true })
   email: string;
 
   @Prop()
@@ -14,7 +14,7 @@ export class User {
   @Prop({ required: true })
   passwordHash: string;
 
-  @Prop({ default: 'viewer', enum: ['tenant_admin', 'operator', 'viewer'] })
+  @Prop({ default: 'viewer', enum: ['platform_admin', 'tenant_admin', 'operator', 'viewer'] })
   role: string;
 
   @Prop()

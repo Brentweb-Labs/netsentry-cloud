@@ -53,7 +53,7 @@ pub async fn overview(State(state): State<SharedState>, UserAuth(c): UserAuth) -
         .await?;
     let top_sources: Vec<Document> = alerts
         .aggregate([
-            doc! { "$match": { "tenant_id": t, "ts": { "$gte": since } } },
+            doc! { "$match": { "tenant_id": t, "ts": { "$gte": since }, "offender_ip": { "$exists": true } } },
             doc! { "$group": { "_id": "$offender_ip", "count": { "$sum": 1 } } },
             doc! { "$sort": { "count": -1 } },
             doc! { "$limit": 10 },

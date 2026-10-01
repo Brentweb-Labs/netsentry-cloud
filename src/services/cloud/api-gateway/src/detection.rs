@@ -139,6 +139,49 @@ pub fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// A raw packet streamed by a sensor over `/ws/packets`.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct StreamedPacket {
+    pub src_ip: String,
+    #[serde(default)]
+    pub dst_ip: String,
+    #[serde(default)]
+    pub src_port: u16,
+    #[serde(default)]
+    pub dst_port: u16,
+    #[serde(default)]
+    pub protocol: String,
+    /// First bytes of the IP payload, hex encoded.
+    #[serde(default)]
+    pub payload_hex: String,
+}
+
+/// Decode at most 512 bytes of hex, skipping malformed pairs.
+pub fn decode_hex_lossy(s: &str) -> Vec<u8> {
+    s.as_bytes()
+        .chunks_exact(2)
+        .take(512)
+        .filter_map(|c| std::str::from_utf8(c).ok().and_then(|h| u8::from_str_radix(h, 16).ok()))
+        .collect()
+}
+
+/// Inspect a streamed packet's payload for known attack patterns.
+pub fn analyse_packet(p: &StreamedPacket) -> Option<Finding> {
+    let src: IpAddr = p.src_ip.parse().ok()?;
+    let bytes = decode_hex_lossy(&p.payload_hex);
+    let text = String::from_utf8_lossy(&bytes);
+    let (level, name) = analyse_text(&text)?;
+    Some(Finding {
+        source: FindingSource::Payload,
+        offender: src,
+        signature: format!("{name} pattern in packet payload"),
+        category: "Web Application Attack".into(),
+        severity: severity_from_threat_level(level),
+        signature_id: 0,
+        action: "alert".into(),
+    })
+}
+
 /// Sliding-window request counter per (tenant, source ip, path).
 #[derive(Default)]
 pub struct BruteForceTracker {
@@ -411,6 +454,33 @@ mod tests {
         let f = run(&e, &settings, &tracker);
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].source, FindingSource::BruteForce);
+    }
+
+    #[test]
+    fn packet_payload_analysis() {
+        let hex = |s: &str| s.bytes().map(|b| format!("{b:02x}")).collect::<String>();
+        let p = StreamedPacket {
+            src_ip: "203.0.113.9".into(),
+            dst_ip: "198.51.100.1".into(),
+            src_port: 4444,
+            dst_port: 80,
+            protocol: "tcp".into(),
+            payload_hex: hex("GET /?q=<script>alert(1)</script> HTTP/1.1"),
+        };
+        let f = analyse_packet(&p).unwrap();
+        assert_eq!(f.offender.to_string(), "203.0.113.9");
+        assert_eq!(f.severity, 2);
+        let benign = StreamedPacket {
+            payload_hex: hex("GET /index.html HTTP/1.1"),
+            ..p.clone()
+        };
+        assert!(analyse_packet(&benign).is_none());
+        let bad_ip = StreamedPacket {
+            src_ip: "nope".into(),
+            ..p
+        };
+        assert!(analyse_packet(&bad_ip).is_none());
+        assert_eq!(decode_hex_lossy("4142zz43"), vec![0x41, 0x42, 0x43]);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsString, MinLength } from 'class-validator';
 
 export class InviteUserDto {
   @IsEmail()
@@ -8,6 +8,6 @@ export class InviteUserDto {
   @MinLength(1)
   name: string;
 
-  @IsString()
+  @IsIn(['tenant_admin', 'operator', 'viewer'])
   role: 'tenant_admin' | 'operator' | 'viewer';
 }

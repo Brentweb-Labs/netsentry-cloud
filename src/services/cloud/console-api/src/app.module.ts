@@ -7,6 +7,8 @@ import { SitesModule } from './sites/sites.module';
 import { SystemModule } from './system/system.module';
 import { BillingModule } from './billing/billing.module';
 import { SensorsModule } from './sensors/sensors.module';
+import { EnrollmentModule } from './enrollment/enrollment.module';
+import { BootstrapModule } from './bootstrap/bootstrap.module';
 
 @Module({
   imports: [
@@ -14,7 +16,7 @@ import { SensorsModule } from './sensors/sensors.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('MONGODB_URI') ?? 'mongodb://localhost:27017/idps_database',
+        uri: config.getOrThrow<string>('MONGODB_URI'),
       }),
       inject: [ConfigService],
     }),
@@ -24,6 +26,8 @@ import { SensorsModule } from './sensors/sensors.module';
     SystemModule,
     BillingModule,
     SensorsModule,
+    EnrollmentModule,
+    BootstrapModule,
   ],
 })
 export class AppModule {}

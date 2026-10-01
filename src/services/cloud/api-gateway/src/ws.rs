@@ -2,7 +2,9 @@
 //! and `/ws` (dashboard live feed, JWT in `?token=`).
 
 use crate::auth::{self, SensorAuth, WsUserAuth};
-use crate::models::SensorIdentity;
+use crate::detection;
+use crate::models::{SensorIdentity, TrafficEvent};
+use crate::pipeline;
 use crate::prevention;
 use crate::signing;
 use crate::state::{Metrics, SharedState};
@@ -85,6 +87,60 @@ impl Registry {
             }
             None => false,
         }
+    }
+}
+
+/// `GET /ws/packets` - raw packet stream from a sensor (X-API-Key header). Payloads are
+/// inspected for attack patterns; matches become alerts/block proposals. Packets are not stored.
+pub async fn packets_ws(
+    State(state): State<SharedState>,
+    SensorAuth(ident): SensorAuth,
+    ws: WebSocketUpgrade,
+) -> Response {
+    ws.on_upgrade(move |socket| handle_packets(socket, state, ident))
+}
+
+async fn handle_packets(mut socket: WebSocket, state: SharedState, ident: SensorIdentity) {
+    use std::time::{Duration, Instant};
+    let mut recent: std::collections::HashMap<(std::net::IpAddr, String), Instant> = std::collections::HashMap::new();
+    while let Some(Ok(msg)) = socket.recv().await {
+        let text = match msg {
+            Message::Text(t) if t.len() <= 16 * 1024 => t,
+            Message::Close(_) => break,
+            _ => continue,
+        };
+        let Ok(pkt) = serde_json::from_str::<detection::StreamedPacket>(&text) else {
+            continue;
+        };
+        let Some(finding) = detection::analyse_packet(&pkt) else {
+            continue;
+        };
+        // At most one alert per (offender, signature) per minute per connection.
+        recent.retain(|_, t| t.elapsed() < Duration::from_secs(60));
+        if recent
+            .insert((finding.offender, finding.signature.clone()), Instant::now())
+            .is_some()
+        {
+            continue;
+        }
+        let event = TrafficEvent {
+            id: uuid::Uuid::new_v4().to_string(),
+            timestamp: chrono::Utc::now(),
+            source_ip: pkt.src_ip.clone(),
+            dest_ip: if pkt.dst_ip.parse::<std::net::IpAddr>().is_ok() {
+                pkt.dst_ip.clone()
+            } else {
+                String::new()
+            },
+            source_port: pkt.src_port,
+            dest_port: pkt.dst_port,
+            protocol: pkt.protocol.chars().take(16).collect(),
+            payload: serde_json::Value::Null,
+            threat_level: 0,
+            event_type: "packet".into(),
+        };
+        let settings = crate::settings::load(&state, &ident.tenant_id).await;
+        pipeline::raise_findings(&state, &ident, &settings, vec![(&event, finding)]).await;
     }
 }
 

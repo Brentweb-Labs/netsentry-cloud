@@ -22,6 +22,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/traffic", post(ingest::traffic))
         .route("/api/traffic/batch", post(ingest::traffic_batch))
         .route("/api/telemetry", post(ingest::telemetry))
+        .route("/api/prevention/blocked", get(ingest::active_blocks))
         .layer(DefaultBodyLimit::max(10 * 1024 * 1024));
 
     let small = Router::new()
@@ -41,6 +42,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/v1/threat-intel", get(api::threat_intel))
         .route("/ws", get(ws::dashboard_ws))
         .route("/ws/raspi", get(ws::sensor_ws))
+        .route("/ws/packets", get(ws::packets_ws))
         .layer(DefaultBodyLimit::max(64 * 1024));
 
     let mut app = small

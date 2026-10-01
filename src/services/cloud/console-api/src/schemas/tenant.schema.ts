@@ -14,7 +14,7 @@ export class ApiKey {
   @Prop({ default: () => new Date() })
   createdAt: Date;
 
-  @Prop({ nullable: true })
+  @Prop({ type: Date, default: null })
   lastUsed: Date | null;
 }
 

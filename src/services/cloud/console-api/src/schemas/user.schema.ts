@@ -23,7 +23,7 @@ export class User {
   @Prop({ default: 'active', enum: ['active', 'invited', 'deactivated'] })
   status: string;
 
-  @Prop({ nullable: true })
+  @Prop({ type: Date, default: null })
   lastLogin: Date | null;
 }
 

@@ -15,15 +15,20 @@ export class BillingService {
   }
 
   private async proxy(path: string, authHeader: string, method = 'GET', body?: unknown) {
-    const res = await firstValueFrom(
-      this.httpService.request({
-        method,
-        url: `${this.rustApiUrl}${path}`,
-        headers: { Authorization: authHeader },
-        data: body,
-      }),
-    );
-    return res.data;
+    try {
+      const res = await firstValueFrom(
+        this.httpService.request({
+          method,
+          url: `${this.rustApiUrl}${path}`,
+          headers: { Authorization: authHeader },
+          data: body,
+        }),
+      );
+      return res.data;
+    } catch {
+      // Billing is not wired up in this release; keep the console usable.
+      return { status: 'unavailable' };
+    }
   }
 
   getSubscription(auth: string) {

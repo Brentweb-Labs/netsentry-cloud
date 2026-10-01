@@ -19,31 +19,40 @@ export class SitesService {
     return sites.map(s => this.mapSite(s));
   }
 
-  async create(dto: CreateSiteDto) {
-    const site = await new this.siteModel(dto).save();
+  async create(dto: CreateSiteDto, tenantId: string) {
+    const site = await new this.siteModel({
+      name: dto.name,
+      tenantId,
+      location: dto.location,
+      status: dto.status,
+    }).save();
     return this.mapSite(site.toObject());
   }
 
-  async findOne(id: string) {
-    const site = await this.siteModel.findById(id).lean().exec();
+  async findOne(id: string, tenantId?: string) {
+    const site = await this.siteModel.findOne({ _id: id, ...(tenantId ? { tenantId } : {}) }).lean().exec();
     if (!site) throw new NotFoundException('Site not found');
     return this.mapSite(site);
   }
 
-  async update(id: string, dto: Partial<CreateSiteDto>) {
-    const site = await this.siteModel.findByIdAndUpdate(id, dto, { new: true }).lean().exec();
+  async update(id: string, dto: Partial<CreateSiteDto>, tenantId?: string) {
+    const { name, location, status } = dto;
+    const site = await this.siteModel
+      .findOneAndUpdate({ _id: id, ...(tenantId ? { tenantId } : {}) }, { name, location, status }, { new: true })
+      .lean()
+      .exec();
     if (!site) throw new NotFoundException('Site not found');
     return this.mapSite(site);
   }
 
-  async remove(id: string) {
-    const site = await this.siteModel.findByIdAndDelete(id).exec();
+  async remove(id: string, tenantId?: string) {
+    const site = await this.siteModel.findOneAndDelete({ _id: id, ...(tenantId ? { tenantId } : {}) }).exec();
     if (!site) throw new NotFoundException('Site not found');
     return { deleted: true };
   }
 
-  async getSensors(id: string) {
-    const site = await this.findOne(id);
+  async getSensors(id: string, tenantId?: string) {
+    const site = await this.findOne(id, tenantId);
     return site.sensors;
   }
 }

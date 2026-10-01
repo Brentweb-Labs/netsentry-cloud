@@ -1,44 +1,42 @@
 [package]
-name = "idps-api-gateway"
-version = "0.1.0"
+name = "netsentry-gateway"
+version = "0.2.0"
 edition = "2021"
+license-file = "../../../../LICENSE"
+publish = false
+
+[lib]
+name = "netsentry_gateway"
+path = "src/lib.rs"
+
+[[bin]]
+name = "netsentry-gateway"
+path = "src/main.rs"
 
 [dependencies]
-# Workspace dependencies
-tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-log = { workspace = true }
-anyhow = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
-mongodb = { workspace = true }
-redis = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-futures-util = { workspace = true }
+anyhow = "1"
+axum = { version = "0.8", features = ["ws"] }
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "6"
+futures-util = "0.3"
+hex = "0.4"
+hmac = "0.12"
+ipnetwork = "0.20"
+jsonwebtoken = "9"
+mongodb = "3"
+rand = "0.8"
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+subtle = "2"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "limit"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4"] }
 
-# API gateway specific dependencies
-axum = { workspace = true, features = ["ws"] }
-tower = { workspace = true }
-tower-http = { workspace = true, features = ["cors", "trace"] }
-reqwest = { workspace = true }
-jsonwebtoken = { workspace = true }
-bcrypt = { workspace = true }
-rand = { workspace = true }
-dashmap = { workspace = true }
-regex = { workspace = true }
-
-# Billing / alerting / reporting
-hmac = { workspace = true }
-sha2 = { workspace = true }
-hex = { workspace = true }
-lettre = { workspace = true }
-printpdf = { workspace = true }
-
-# Shared libraries
-idps-types = { path = "../../../shared/types" }
-idps-protocols = { path = "../../../shared/protocols" }
-idps-utils = { path = "../../../shared/utils" }
-idps-config = { path = "../../../shared/config" }
-idps-rule-generator = { path = "../../cloud/rule-generator" }
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

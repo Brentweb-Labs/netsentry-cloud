@@ -18,11 +18,11 @@
                 <h1
                     class="font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md"
                 >
-                    IDPS Admin
+                    NetSentry
                 </h1>
             </div>
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                Sign in with your administrator credentials.
+                Sign in with your account.
             </p>
         </div>
 
@@ -39,13 +39,13 @@
         <form (submit)="onSignIn(); $event.preventDefault()" class="space-y-6">
             <div>
                 <app-label
-                    >Username <span class="text-error-500">*</span></app-label
+                    >E-mail <span class="text-error-500">*</span></app-label
                 >
                 <app-input-field
-                    type="text"
-                    placeholder="admin"
-                    [value]="username"
-                    (valueChange)="username = $event.toString()"
+                    type="email"
+                    placeholder="you@example.com"
+                    [value]="email"
+                    (valueChange)="email = $event.toString()"
                 />
             </div>
 

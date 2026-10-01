@@ -2,7 +2,6 @@
 layer(base);
 
 @import "tailwindcss";
-@import "swiper/css/bundle";
 
 @custom-variant dark (&:is(.dark *));
 

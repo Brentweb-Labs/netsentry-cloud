@@ -5,51 +5,71 @@ import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 interface LoginResponse {
-  token: string;
-  expires_in: number;
+  access_token: string;
+  role: string;
+  tenant_id: string;
 }
+
+export interface TokenClaims {
+  sub: string;
+  email: string;
+  role: string;
+  tenantId: string;
+  exp: number;
+}
+
+const TOKEN_KEY = 'netsentry_token';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly TOKEN_KEY = 'idps_token';
-  private readonly apiUrl = environment.apiUrl;
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+  ) {}
 
-  constructor(private http: HttpClient, private router: Router) {}
-
-  login(username: string, password: string): Observable<LoginResponse> {
+  login(email: string, password: string): Observable<LoginResponse> {
     return this.http
-      .post<LoginResponse>(`${this.apiUrl}/auth/login`, { username, password })
-      .pipe(tap(res => localStorage.setItem(this.TOKEN_KEY, res.token)));
+      .post<LoginResponse>(`${environment.apiUrl}/auth/login`, { email, password })
+      .pipe(tap((res) => localStorage.setItem(TOKEN_KEY, res.access_token)));
   }
 
   logout(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
     this.router.navigate(['/signin']);
   }
 
-  isAuthenticated(): boolean {
-    const token = this.getToken();
-    if (!token) return false;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 > Date.now();
-    } catch {
-      return false;
-    }
-  }
-
   getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    return localStorage.getItem(TOKEN_KEY);
   }
 
-  getTenantId(): string {
+  claims(): TokenClaims | null {
     const token = this.getToken();
-    if (!token) return 'default';
+    if (!token) return null;
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.tenant_id ?? 'default';
+      const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(b64)) as TokenClaims;
     } catch {
-      return 'default';
+      return null;
     }
+  }
+
+  isAuthenticated(): boolean {
+    const c = this.claims();
+    return !!c && c.exp * 1000 > Date.now();
+  }
+
+  /** Viewers are read-only in the API; hide write controls for them. */
+  canWrite(): boolean {
+    const role = this.claims()?.role;
+    return !!role && role !== 'viewer';
+  }
+
+  canAdmin(): boolean {
+    const role = this.claims()?.role;
+    return role === 'platform_admin' || role === 'tenant_admin';
+  }
+
+  email(): string {
+    return this.claims()?.email ?? '';
   }
 }

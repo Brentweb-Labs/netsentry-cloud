@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "idps-dashboard": {
+    "netsentry-dashboard": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -13,15 +13,15 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/idps-dashboard",
+            "outputPath": "dist/netsentry-dashboard",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [
               "zone.js"
             ],
             "allowedCommonJsDependencies": [
-               "prismjs",
-               "polylabel"
+              "prismjs",
+              "polylabel"
             ],
             "tsConfig": "tsconfig.app.json",
             "assets": [
@@ -33,9 +33,7 @@
             "styles": [
               "src/styles.css"
             ],
-            "scripts": [
-              "node_modules/apexcharts/dist/apexcharts.min.js"
-            ]
+            "scripts": []
           },
           "configurations": {
             "production": {
@@ -71,10 +69,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "idps-dashboard:build:production"
+              "buildTarget": "netsentry-dashboard:build:production"
             },
             "development": {
-              "buildTarget": "idps-dashboard:build:development"
+              "buildTarget": "netsentry-dashboard:build:development"
             }
           },
           "defaultConfiguration": "development"

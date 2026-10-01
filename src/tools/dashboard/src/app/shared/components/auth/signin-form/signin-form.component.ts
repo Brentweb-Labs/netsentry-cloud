@@ -14,7 +14,7 @@ import { AuthService } from '../../../services/auth.service';
 })
 export class SigninFormComponent {
   showPassword = false;
-  username = '';
+  email = '';
   password = '';
   errorMessage = '';
   loading = false;
@@ -26,17 +26,17 @@ export class SigninFormComponent {
   }
 
   onSignIn() {
-    if (!this.username || !this.password) {
-      this.errorMessage = 'Username and password are required.';
+    if (!this.email || !this.password) {
+      this.errorMessage = 'E-mail and password are required.';
       return;
     }
     this.loading = true;
     this.errorMessage = '';
-    this.auth.login(this.username, this.password).subscribe({
-      next: () => this.router.navigate(['/idps']),
+    this.auth.login(this.email.trim(), this.password).subscribe({
+      next: () => this.router.navigate(['/overview']),
       error: err => {
         this.errorMessage = err.status === 401
-          ? 'Invalid username or password.'
+          ? 'Invalid e-mail or password.'
           : 'Login failed. Please try again.';
         this.loading = false;
       }

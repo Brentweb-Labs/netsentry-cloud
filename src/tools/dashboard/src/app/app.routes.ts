@@ -1,10 +1,12 @@
 import { Routes } from '@angular/router';
-import { IdpsComponent } from './pages/dashboard/idps/idps.component';
-import { SettingsComponent } from './pages/settings/settings.component';
-import { ReportsComponent } from './pages/reports/reports.component';
 import { AppLayoutComponent } from './shared/layout/app-layout/app-layout.component';
 import { SignInComponent } from './pages/auth-pages/sign-in/sign-in.component';
 import { NotFoundComponent } from './pages/other-page/not-found/not-found.component';
+import { OverviewComponent } from './pages/overview/overview.component';
+import { AlertsComponent } from './pages/alerts/alerts.component';
+import { BlockedComponent } from './pages/blocked/blocked.component';
+import { SensorsComponent } from './pages/sensors/sensors.component';
+import { SettingsComponent } from './pages/settings/settings.component';
 import { authGuard } from './shared/guards/auth.guard';
 
 export const routes: Routes = [
@@ -13,36 +15,14 @@ export const routes: Routes = [
     component: AppLayoutComponent,
     canActivate: [authGuard],
     children: [
-      {
-        path: '',
-        redirectTo: '/idps',
-        pathMatch: 'full'
-      },
-      {
-        path: 'idps',
-        component: IdpsComponent,
-        title: 'IDPS Dashboard | Intrusion Detection and Prevention System',
-      },
-      {
-        path: 'settings',
-        component: SettingsComponent,
-        title: 'Detection Settings | IDPS',
-      },
-      {
-        path: 'reports',
-        component: ReportsComponent,
-        title: 'Compliance Reports | IDPS',
-      },
-    ]
+      { path: '', redirectTo: 'overview', pathMatch: 'full' },
+      { path: 'overview', component: OverviewComponent, title: 'Overview | NetSentry' },
+      { path: 'alerts', component: AlertsComponent, title: 'Alerts | NetSentry' },
+      { path: 'blocked', component: BlockedComponent, title: 'Blocked IPs | NetSentry' },
+      { path: 'sensors', component: SensorsComponent, title: 'Sensors | NetSentry' },
+      { path: 'settings', component: SettingsComponent, title: 'Settings | NetSentry' },
+    ],
   },
-  {
-    path: 'signin',
-    component: SignInComponent,
-    title: 'Sign In | IDPS'
-  },
-  {
-    path: '**',
-    component: NotFoundComponent,
-    title: 'Not Found | IDPS'
-  },
+  { path: 'signin', component: SignInComponent, title: 'Sign In | NetSentry' },
+  { path: '**', component: NotFoundComponent, title: 'Not Found | NetSentry' },
 ];

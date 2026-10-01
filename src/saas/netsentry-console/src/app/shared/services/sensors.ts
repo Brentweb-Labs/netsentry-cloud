@@ -47,6 +47,14 @@ export interface SensorRegistrationResponse {
   status: string;
 }
 
+export interface EnrollmentToken {
+  id: string;
+  token: string; // shown once
+  tenant_id: string;
+  expires_at: string;
+  max_uses: number;
+}
+
 const BASE = '/api/sensors';
 
 @Injectable({ providedIn: 'root' })
@@ -71,6 +79,10 @@ export class Sensors {
 
   revoke(id: string): Observable<{ revoked: boolean; sensorId: string }> {
     return this.http.delete<{ revoked: boolean; sensorId: string }>(`${BASE}/${id}`);
+  }
+
+  createEnrollmentToken(opts: { label?: string; ttlHours?: number; maxUses?: number } = {}): Observable<EnrollmentToken> {
+    return this.http.post<EnrollmentToken>('/api/enrollment-tokens', opts);
   }
 
   regenerateKey(id: string): Observable<{ apiKey: string }> {

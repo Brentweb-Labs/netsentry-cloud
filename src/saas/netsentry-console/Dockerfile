@@ -4,7 +4,7 @@ WORKDIR /app
 COPY src/saas/netsentry-console/package*.json ./
 RUN npm install
 COPY src/saas/netsentry-console/ .
-RUN npm run build
+RUN npm run build -- --base-href /console/
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine

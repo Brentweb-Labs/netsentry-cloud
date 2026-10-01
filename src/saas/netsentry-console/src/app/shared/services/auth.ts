@@ -6,8 +6,8 @@ import { Observable, tap } from 'rxjs';
 interface LoginResponse { access_token: string; }
 
 export interface TokenPayload {
-  sub: string; tenant_id: string; org_id: string;
-  role: 'msp_admin' | 'tenant_admin' | 'operator' | 'viewer'; exp: number;
+  sub: string; tenantId: string; org_id?: string;
+  role: 'platform_admin' | 'msp_admin' | 'tenant_admin' | 'operator' | 'viewer'; exp: number;
 }
 
 const KEY = 'netsentry_console_token';
@@ -40,5 +40,5 @@ export class Auth {
 
   orgId(): string     { return this.payload()?.org_id    ?? ''; }
   role(): string      { return this.payload()?.role      ?? 'viewer'; }
-  isMspAdmin(): boolean { return this.payload()?.role === 'msp_admin'; }
+  isMspAdmin(): boolean { const r = this.payload()?.role; return r === 'platform_admin' || r === 'msp_admin'; }
 }

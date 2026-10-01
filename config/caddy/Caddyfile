@@ -1,0 +1,42 @@
+# NetSentry Cloud edge proxy. Caddy obtains and renews TLS certificates
+# automatically for {$DOMAIN} (Let's Encrypt / ZeroSSL; ports 80 and 443 must
+# be reachable). With DOMAIN=localhost it uses a local, self-signed CA.
+
+{$DOMAIN:localhost} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Data plane: sensor ingest/enrollment/commands and the dashboard API.
+	@gateway path /api/v1/* /api/traffic /api/traffic/* /api/telemetry /api/prevention/* /ws /ws/*
+	handle @gateway {
+		reverse_proxy api-gateway:8080
+	}
+
+	# Control plane: tenants, users, sensors, enrollment tokens (NestJS).
+	handle /api/* {
+		reverse_proxy console-api:8095
+	}
+
+	# Admin console (Angular, built with base href /console/).
+	redir /console /console/ permanent
+	handle_path /console/* {
+		reverse_proxy console-frontend:80
+	}
+
+	# Metrics UI (Grafana serves itself from /grafana).
+	handle /grafana* {
+		reverse_proxy grafana:3000
+	}
+
+	# Operator dashboard.
+	handle {
+		reverse_proxy dashboard:80
+	}
+}

@@ -1,0 +1,202 @@
+{
+  "title": "NetSentry Overview",
+  "uid": "netsentry-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "tags": [
+    "netsentry"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Sensors online",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": null
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "netsentry_sensors_online",
+          "legendFormat": "online",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Threat feed entries",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": null
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "netsentry_threat_feed_entries",
+          "legendFormat": "entries",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Enrollments",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": null
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "netsentry_enrollments_total",
+          "legendFormat": "total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Auto-blocks",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": null
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "netsentry_blocks_auto_total",
+          "legendFormat": "total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Events ingested / s",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": null
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(netsentry_events_ingested_total[5m])",
+          "legendFormat": "stored",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(netsentry_events_rejected_total[5m])",
+          "legendFormat": "rejected",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Alerts / min",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": null
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(netsentry_alerts_total[5m]) * 60",
+          "legendFormat": "alerts",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Blocks created / hour",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": null
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "increase(netsentry_blocks_created_total[1h])",
+          "legendFormat": "created",
+          "refId": "A"
+        },
+        {
+          "expr": "increase(netsentry_blocks_auto_total[1h])",
+          "legendFormat": "automatic",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Signed commands sent / min",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": null
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(netsentry_commands_sent_total[5m]) * 60",
+          "legendFormat": "commands",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

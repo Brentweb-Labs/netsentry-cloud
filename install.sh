@@ -1,161 +1,195 @@
-#!/bin/bash
-# =============================================================================
-# NetSentry Cloud — Interactive Environment Setup
-# Generates a .env file with secure secrets for your deployment.
-# =============================================================================
-
-set -e
+#!/usr/bin/env bash
+# NetSentry Cloud installer.
+#
+# Generates secrets, asks for the public domain, starts the Docker Compose
+# stack (Caddy provides automatic TLS) and prints the admin login plus a first
+# sensor enrollment token.
+#
+#   ./install.sh                         interactive
+#   ./install.sh --yes --domain cloud.example.com --admin-email me@example.com
+#
+# Options (or the matching environment variable):
+#   --domain NAME        NETSENTRY_DOMAIN        public hostname (use "localhost" for a local trial)
+#   --admin-email ADDR   NETSENTRY_ADMIN_EMAIL   first administrator's e-mail
+#   --yes                NETSENTRY_ASSUME_YES=1  never prompt; fail if a value is missing
+#   --force              overwrite an existing .env (generates new secrets)
+#   --no-start           write .env only, do not start the stack
+#   -h, --help
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+DOMAIN="${NETSENTRY_DOMAIN:-}"
+ADMIN_EMAIL="${NETSENTRY_ADMIN_EMAIL:-}"
+ASSUME_YES="${NETSENTRY_ASSUME_YES:-0}"
+FORCE=0
+NO_START=0
 
-log_info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
-log_warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log()  { printf '\033[0;32m[netsentry]\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m[netsentry]\033[0m %s\n' "$*" >&2; }
+die()  { printf '\033[0;31m[netsentry]\033[0m %s\n' "$*" >&2; exit 1; }
 
-generate_secret() {
-    if command -v openssl &>/dev/null; then
-        openssl rand -base64 32
-    else
-        date +%s%N | sha256sum | base64 | head -c 44
+usage() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; }
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --domain)       [ $# -ge 2 ] || die "--domain needs a value"; DOMAIN="$2"; shift 2 ;;
+        --admin-email)  [ $# -ge 2 ] || die "--admin-email needs a value"; ADMIN_EMAIL="$2"; shift 2 ;;
+        --yes|-y)       ASSUME_YES=1; shift ;;
+        --force)        FORCE=1; shift ;;
+        --no-start)     NO_START=1; shift ;;
+        -h|--help)      usage; exit 0 ;;
+        *)              die "unknown option: $1 (see --help)" ;;
+    esac
+done
+
+prompt() { # prompt VAR "Question" "default"
+    local var="$1" question="$2" default="${3:-}" reply=""
+    if [ "$ASSUME_YES" = "1" ]; then
+        [ -n "${!var}" ] || { [ -n "$default" ] || die "$var is required (use --domain / --admin-email)"; printf -v "$var" '%s' "$default"; }
+        return
     fi
+    [ -z "${!var}" ] || return 0
+    if [ -n "$default" ]; then
+        read -r -p "$question [$default]: " reply </dev/tty || true
+    else
+        read -r -p "$question: " reply </dev/tty || true
+    fi
+    printf -v "$var" '%s' "${reply:-$default}"
+    [ -n "${!var}" ] || die "$var is required"
 }
 
-# ── Guard: don't overwrite an existing .env without confirmation ──────────────
-if [ -f "$ENV_FILE" ]; then
-    log_warn "Environment file already exists at $ENV_FILE"
-    read -r -p "Overwrite? (y/N): " reply
-    echo
-    if [[ ! $reply =~ ^[Yy]$ ]]; then
-        log_info "Keeping existing .env file"
-        exit 0
+rand_hex() { openssl rand -hex 32; }
+rand_pass() { openssl rand -base64 24 | tr -d '/+=\n' | cut -c1-24; }
+
+valid_domain() { [[ "$1" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]]; }
+valid_email()  { [[ "$1" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; }
+
+command -v openssl >/dev/null 2>&1 || die "openssl is required"
+
+# --- Docker -------------------------------------------------------------------
+if ! command -v docker >/dev/null 2>&1; then
+    if [ "$NO_START" = "1" ]; then
+        warn "docker not found (not needed with --no-start)"
+    elif [ "$(id -u)" -eq 0 ] && command -v curl >/dev/null 2>&1; then
+        log "Docker not found; installing via get.docker.com"
+        curl -fsSL https://get.docker.com | sh
+    else
+        die "Docker is required. Install it (https://docs.docker.com/engine/install/) and re-run."
     fi
 fi
-
-echo "=============================================="
-echo "  NetSentry Cloud — Environment Setup"
-echo "=============================================="
-echo ""
-
-# ── Secrets (auto-generated) ──────────────────────────────────────────────────
-JWT_SECRET=$(generate_secret)
-log_info "Generated JWT_SECRET"
-
-read -r -p "MongoDB root password (leave blank to generate): " MONGO_ROOT_PASSWORD
-if [ -z "$MONGO_ROOT_PASSWORD" ]; then
-    MONGO_ROOT_PASSWORD=$(generate_secret | tr -d '=+/' | head -c 32)
-    log_info "Generated MONGO_ROOT_PASSWORD"
+if [ "$NO_START" != "1" ]; then
+    docker compose version >/dev/null 2>&1 || die "the Docker Compose plugin (docker compose) is required"
 fi
 
-# ── Admin credentials ─────────────────────────────────────────────────────────
-read -r -p "Admin username [admin]: " ADMIN_USERNAME
-ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+# --- Configuration ------------------------------------------------------------
+if [ -f "$ENV_FILE" ] && [ "$FORCE" != "1" ]; then
+    log "Keeping existing $ENV_FILE (use --force to regenerate)"
+else
+    prompt DOMAIN "Public domain for NetSentry (DNS must point at this host; 'localhost' for a local trial)" ""
+    valid_domain "$DOMAIN" || die "invalid domain: $DOMAIN"
+    prompt ADMIN_EMAIL "Administrator e-mail" "admin@$DOMAIN"
+    valid_email "$ADMIN_EMAIL" || die "invalid e-mail: $ADMIN_EMAIL"
 
-read -r -s -p "Admin password: " ADMIN_PASSWORD
+    umask 077
+    {
+        echo "# Generated by install.sh on $(date -u +%Y-%m-%dT%H:%M:%SZ). Keep private; never commit."
+        echo "DOMAIN=$DOMAIN"
+        echo "MONGO_ROOT_PASSWORD=$(rand_hex)"
+        echo "MONGO_APP_PASSWORD=$(rand_hex)"
+        echo "REDIS_PASSWORD=$(rand_hex)"
+        echo "JWT_SECRET=$(rand_hex)"
+        echo "GRAFANA_ADMIN_PASSWORD=$(rand_pass)"
+        echo "ADMIN_EMAIL=$ADMIN_EMAIL"
+        echo "ADMIN_PASSWORD=$(rand_pass)"
+        echo "THREAT_FEED_URLS="
+        echo "EVENT_RETENTION_DAYS=30"
+        echo "RUST_LOG=info"
+    } >"$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+    log "Wrote $ENV_FILE with freshly generated secrets"
+fi
+
+env_value() { # env_value KEY  (reads from .env without sourcing it)
+    sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1
+}
+DOMAIN="$(env_value DOMAIN)"
+ADMIN_EMAIL="$(env_value ADMIN_EMAIL)"
+ADMIN_PASSWORD="$(env_value ADMIN_PASSWORD)"
+
+if [ "$NO_START" = "1" ]; then
+    log "Done (--no-start). Start later with: docker compose up -d --build"
+    exit 0
+fi
+
+# --- Start --------------------------------------------------------------------
+cd "$SCRIPT_DIR"
+docker compose config -q || die "docker compose configuration is invalid"
+log "Building and starting the stack (first build takes several minutes)"
+docker compose up -d --build
+
+log "Waiting for console-api"
+ready=0
+for _ in $(seq 1 90); do
+    if docker compose exec -T console-api wget -qO- http://127.0.0.1:8095/api/health >/dev/null 2>&1; then
+        ready=1
+        break
+    fi
+    sleep 2
+done
+[ "$ready" = "1" ] || die "console-api did not become healthy; inspect: docker compose logs console-api"
+
+# --- First enrollment token ---------------------------------------------------
+# Runs inside the container so credentials come from its environment and never
+# appear on a command line.
+TOKEN="$(docker compose exec -T console-api node -e '
+const base = "http://127.0.0.1:8095";
+const call = async (path, opts) => {
+  const r = await fetch(base + path, opts);
+  if (!r.ok) throw new Error(path + " -> HTTP " + r.status);
+  return r.json();
+};
+(async () => {
+  const { access_token } = await call("/api/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD }),
+  });
+  const t = await call("/api/enrollment-tokens", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer " + access_token },
+    body: JSON.stringify({ label: "install.sh", ttlHours: 24, maxUses: 1 }),
+  });
+  process.stdout.write(t.token);
+})().catch((e) => { console.error(String(e)); process.exit(1); });
+' 2>/dev/null)" || TOKEN=""
+
 echo
-if [ -z "$ADMIN_PASSWORD" ]; then
-    ADMIN_PASSWORD=$(generate_secret | tr -d '=+/' | head -c 24)
-    log_warn "No password entered — generated: $ADMIN_PASSWORD"
-    log_warn "Save this! It won't be shown again."
+echo "=============================================================="
+echo " NetSentry Cloud is starting"
+echo "=============================================================="
+echo " Dashboard : https://$DOMAIN/"
+echo " Console   : https://$DOMAIN/console/"
+echo " Grafana   : https://$DOMAIN/grafana/   (user: admin, password: GRAFANA_ADMIN_PASSWORD in .env)"
+echo
+echo " Admin login : $ADMIN_EMAIL"
+echo " Password    : $ADMIN_PASSWORD"
+echo "   (stored in $ENV_FILE; change it after first login)"
+echo
+if [ -n "$TOKEN" ]; then
+    echo " First sensor enrollment token (valid 24 h, single use):"
+    echo "   $TOKEN"
+    echo
+    echo " On the sensor host run:"
+    echo "   curl -fsSL https://raw.githubusercontent.com/Brentweb-Labs/netsentry-sensor/main/install.sh | \\"
+    echo "     sudo NETSENTRY_CLOUD_URL=https://$DOMAIN NETSENTRY_ENROLL_TOKEN=$TOKEN sh"
+else
+    warn "Could not create the enrollment token automatically."
+    warn "Sign in to the console at https://$DOMAIN/console/ and use 'Enroll a sensor'."
 fi
-
-# ── Domain & access ───────────────────────────────────────────────────────────
-read -r -p "Your cloud domain (e.g. netsentry.example.com): " DOMAIN
-while [ -z "$DOMAIN" ]; do
-    log_error "Domain is required."
-    read -r -p "Your cloud domain: " DOMAIN
-done
-
-read -r -p "Your management IP for dashboard allowlist (e.g. 203.0.113.42): " ALLOWED_IP
-while [ -z "$ALLOWED_IP" ]; do
-    log_error "Management IP is required."
-    read -r -p "Your management IP: " ALLOWED_IP
-done
-
-# ── Optional: Stripe ──────────────────────────────────────────────────────────
-read -r -p "Stripe secret key (skip to leave empty): " STRIPE_SECRET_KEY
-read -r -p "Stripe price ID (skip to leave empty): " STRIPE_PRICE_ID
-read -r -p "Stripe webhook secret (skip to leave empty): " STRIPE_WEBHOOK_SECRET
-
-# ── Optional: SMTP ────────────────────────────────────────────────────────────
-read -r -p "SMTP host (skip to leave empty): " SMTP_HOST
-read -r -p "SMTP username (skip to leave empty): " SMTP_USERNAME
-
-# ── Optional: Twilio ─────────────────────────────────────────────────────────
-read -r -p "Twilio Account SID (skip to leave empty): " TWILIO_ACCOUNT_SID
-
-# ── Write .env ────────────────────────────────────────────────────────────────
-cat > "$ENV_FILE" << EOF
-# =============================================================================
-# NetSentry Cloud Environment Configuration
-# Generated: $(date -u)
-# =============================================================================
-
-# DOMAIN & ACCESS
-DOMAIN=${DOMAIN}
-ALLOWED_IP=${ALLOWED_IP}/32
-
-# DATABASE
-MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
-
-# AUTHENTICATION
-JWT_SECRET=${JWT_SECRET}
-ADMIN_USERNAME=${ADMIN_USERNAME}
-ADMIN_PASSWORD=${ADMIN_PASSWORD}
-TENANT_ID=default
-
-# SENSOR CONNECTIVITY
-# Update this to your sensor's WireGuard IP once sensors are deployed.
-SENSOR_ENDPOINT=http://10.10.0.2:8080
-
-# INTERNAL SERVICES
-THREAT_INTEL_URL=http://threat-intel:8094
-LOG_LEVEL=info
-
-# DETECTION SETTINGS
-AUTO_BLOCK_ENABLED=false
-
-# STRIPE BILLING (optional)
-STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
-STRIPE_PRICE_ID=${STRIPE_PRICE_ID:-}
-STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
-
-# SMTP EMAIL ALERTS (optional)
-SMTP_HOST=${SMTP_HOST:-}
-SMTP_PORT=587
-SMTP_USERNAME=${SMTP_USERNAME:-}
-SMTP_PASSWORD=
-SMTP_FROM=alerts@netsentry.io
-
-# TWILIO SMS ALERTS (optional)
-TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
-TWILIO_AUTH_TOKEN=
-TWILIO_FROM_NUMBER=
-
-# LOGGING
-RUST_LOG=info
-EOF
-
-chmod 600 "$ENV_FILE"
-
-echo ""
-log_info "Environment file written to $ENV_FILE"
-log_info "Review and fill in any remaining blanks (SMTP_PASSWORD, TWILIO_AUTH_TOKEN, etc.)"
-echo ""
-log_info "Pre-flight checklist:"
-echo "  1. Ensure the external 'proxy' Docker network exists:"
-echo "       docker network create proxy"
-echo "  2. Ensure Traefik is running in a separate stack."
-echo "  3. DNS A record for ${DOMAIN} → this server's public IP."
-echo "  4. WireGuard interface wg0 is running on this server."
-echo ""
-log_info "To start the cloud stack:"
-echo "  docker compose -f docker-compose.yml up -d"
-echo ""
-log_info "To check logs:"
-echo "  docker compose -f docker-compose.yml logs -f"
+echo "=============================================================="
+if [ "$DOMAIN" != "localhost" ]; then
+    echo " Certificates are issued automatically once DNS for $DOMAIN points here"
+    echo " and ports 80/443 are reachable. Check: docker compose logs caddy"
+fi

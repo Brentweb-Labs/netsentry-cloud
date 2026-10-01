@@ -1,252 +1,182 @@
+# NetSentry Cloud - single-host stack with automatic TLS (Caddy).
+# Configure via .env (run ./install.sh to generate it).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [internal]
+    depends_on:
+      - api-gateway
+      - console-api
+      - console-frontend
+      - dashboard
+    logging: *logging
+
   mongodb:
-    image: mongo:6.0
-    container_name: idps-mongodb-vps
+    image: mongo:8.0
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
       MONGO_INITDB_DATABASE: idps_database
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?set MONGO_APP_PASSWORD in .env}
     volumes:
       - mongodb_data:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
-    networks:
-      - idps-net
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
+    networks: [internal]
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 30s
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
       timeout: 10s
-      retries: 3
+      retries: 10
       start_period: 30s
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}", "--save", "", "--appendonly", "no"]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    logging: *logging
 
   api-gateway:
     build:
       context: .
       dockerfile: src/services/cloud/api-gateway/Dockerfile
-    container_name: idps-api-gateway-vps
     restart: unless-stopped
     environment:
-      - GATEWAY_MODE=vps
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/idps_database?authSource=admin
-      - JWT_SECRET=${JWT_SECRET}
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - LOG_LEVEL=info
-      # Sensor connectivity — WireGuard tunnel address of the sensor node
-      - SENSOR_ENDPOINT=${SENSOR_ENDPOINT:-http://10.10.0.2:8080}
-      - THREAT_INTEL_URL=http://threat-intel:8094
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
-      - STRIPE_PRICE_ID=${STRIPE_PRICE_ID:-}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USERNAME=${SMTP_USERNAME:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
-      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER:-}
-    # Bind only on WireGuard interface so sensors can reach the API over the tunnel.
-    # Remove "10.10.0.1:" prefix if you need local host access for dev/testing.
-    ports:
-      - "10.10.0.1:8080:8080"
-    networks:
-      - idps-net
-      - proxy
+      MONGODB_URI: mongodb://idps_app:${MONGO_APP_PASSWORD}@mongodb:27017/idps_database?authSource=idps_database
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      PUBLIC_URL: https://${DOMAIN}
+      THREAT_FEED_URLS: ${THREAT_FEED_URLS:-}
+      EVENT_RETENTION_DAYS: ${EVENT_RETENTION_DAYS:-30}
+      RUST_LOG: ${RUST_LOG:-info}
+    networks: [internal]
     depends_on:
       mongodb:
         condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=proxy"
-      - "traefik.http.routers.idps-api.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api/vps`) || PathPrefix(`/api/prevention`) || PathPrefix(`/api/auth`) || PathPrefix(`/ws`))"
-      - "traefik.http.routers.idps-api.entrypoints=websecure"
-      - "traefik.http.routers.idps-api.tls=true"
-      - "traefik.http.routers.idps-api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.idps-api.priority=20"
-      - "traefik.http.routers.idps-api.middlewares=idps-strip-vps@docker"
-      - "traefik.http.middlewares.idps-strip-vps.replacepathregex.regex=^/api/vps(.*)"
-      - "traefik.http.middlewares.idps-strip-vps.replacepathregex.replacement=/api$$1"
-      - "traefik.http.services.idps-api.loadbalancer.server.port=8080"
+      redis:
+        condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 1G
-        reservations:
-          memory: 512M
-
-  threat-intel:
-    build:
-      context: .
-      dockerfile: src/services/cloud/threat-intel/Dockerfile
-    container_name: idps-threat-intel-vps
-    restart: unless-stopped
-    environment:
-      - SERVICE_MODE=vps
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/idps_database?authSource=admin
-      - LOG_LEVEL=info
-      - UPDATE_INTERVAL=3600
-    ports:
-      - "127.0.0.1:8094:8094"
-    networks:
-      - idps-net
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-
-  vps-processor:
-    build:
-      context: .
-      dockerfile: src/services/cloud/vps-processor/Dockerfile
-    container_name: idps-vps-processor
-    restart: unless-stopped
-    environment:
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/idps_database?authSource=admin
-      - LOG_LEVEL=info
-    ports:
-      - "127.0.0.1:9093:9093"
-    networks:
-      - idps-net
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  packet-analyzer:
-    build:
-      context: .
-      dockerfile: src/services/cloud/packet-analyzer/Dockerfile
-    container_name: idps-packet-analyzer-vps
-    restart: unless-stopped
-    network_mode: host
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
-    environment:
-      - ANALYZER_MODE=vps
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@localhost:27017/idps_database?authSource=admin
-      - LOG_LEVEL=info
-    volumes:
-      - ./data/logs/suricata:/var/log/suricata:ro
-      - ./logs/packet-analyzer:/var/log/idps/packet-analyzer
-    depends_on:
-      - mongodb
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
+    logging: *logging
 
   console-api:
     build:
       context: .
       dockerfile: src/services/cloud/console-api/Dockerfile
-    container_name: idps-console-api
     restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/idps_database?authSource=admin
-      - JWT_SECRET=${JWT_SECRET}
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-    networks:
-      - idps-net
-      - proxy
+      PORT: "8095"
+      MONGODB_URI: mongodb://idps_app:${MONGO_APP_PASSWORD}@mongodb:27017/idps_database?authSource=idps_database
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      RUST_API_URL: http://api-gateway:8080
+    networks: [internal]
     depends_on:
       mongodb:
         condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=proxy"
-      - "traefik.http.routers.idps-console-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api/console`)"
-      - "traefik.http.routers.idps-console-api.entrypoints=websecure"
-      - "traefik.http.routers.idps-console-api.tls=true"
-      - "traefik.http.routers.idps-console-api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.idps-console-api.priority=50"
-      - "traefik.http.services.idps-console-api.loadbalancer.server.port=8095"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8095/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     deploy:
       resources:
         limits:
           memory: 512M
-        reservations:
-          memory: 256M
+    logging: *logging
 
   console-frontend:
     build:
       context: .
       dockerfile: src/saas/netsentry-console/Dockerfile
-    container_name: idps-console-frontend
     restart: unless-stopped
-    ports:
-      - "0.0.0.0:3000:80"
-    networks:
-      - idps-net
-      - proxy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=proxy"
-      - "traefik.http.routers.idps-console.rule=Host(`${DOMAIN}`) && PathPrefix(`/console`)"
-      - "traefik.http.routers.idps-console.entrypoints=websecure"
-      - "traefik.http.routers.idps-console.tls=true"
-      - "traefik.http.routers.idps-console.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.idps-console.priority=30"
-      - "traefik.http.routers.idps-console.middlewares=idps-strip-console@docker"
-      - "traefik.http.middlewares.idps-strip-console.replacepathregex.regex=^/console(.*)"
-      - "traefik.http.middlewares.idps-strip-console.replacepathregex.replacement=/$$1"
-      - "traefik.http.services.idps-console.loadbalancer.server.port=80"
+    networks: [internal]
     deploy:
       resources:
         limits:
-          memory: 256M
-        reservations:
           memory: 128M
+    logging: *logging
 
-  vps-dashboard:
+  dashboard:
     build:
       context: .
       dockerfile: src/tools/dashboard/Dockerfile
-    container_name: idps-vps-dashboard
     restart: unless-stopped
-    networks:
-      - idps-net
-      - proxy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=proxy"
-      - "traefik.http.routers.idps-dashboard.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.idps-dashboard.entrypoints=websecure"
-      - "traefik.http.routers.idps-dashboard.tls=true"
-      - "traefik.http.routers.idps-dashboard.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.idps-dashboard.priority=10"
-      - "traefik.http.routers.idps-dashboard.middlewares=idps-dashboard-ipallowlist"
-      - "traefik.http.middlewares.idps-dashboard-ipallowlist.ipallowlist.sourcerange=${ALLOWED_IP}/32"
-      - "traefik.http.services.idps-dashboard.loadbalancer.server.port=80"
+    networks: [internal]
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 128M
+    logging: *logging
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./config/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks: [internal]
+    logging: *logging
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_SERVER_ROOT_URL: https://${DOMAIN}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./config/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    networks: [internal]
+    depends_on:
+      - prometheus
+    logging: *logging
 
 volumes:
   mongodb_data:
-    driver: local
+  caddy_data:
+  caddy_config:
+  prometheus_data:
+  grafana_data:
 
 networks:
-  idps-net:
-    name: idps-net
-    driver: bridge
-  proxy:
-    external: true
+  internal:

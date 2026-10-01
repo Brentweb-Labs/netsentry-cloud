@@ -2,7 +2,6 @@
 name = "netsentry-gateway"
 version = "0.2.0"
 edition = "2021"
-license-file = "../../../../LICENSE"
 publish = false
 
 [lib]
@@ -40,3 +39,5 @@ uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+tokio-tungstenite = "0.29"

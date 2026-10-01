@@ -1,21 +1,23 @@
-# rust
+# Rust
 target
 
-# Security - never commit keys or credentials
+# Secrets and keys - never commit
 *.key
 privatekey
 publickey
 *.pem
 *.crt
-
-# Environment files
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
-# Logs
+# Node
+node_modules
+dist
+.angular
+
+# Logs / data / scratch
 *.log
 logs/
-
-# Database
-data/tree.md
+data/
+tree.md
